@@ -37,6 +37,9 @@ dev = [
     "httpx>=0.26.0",
 ]
 
+[project.scripts]
+server = "server.app:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["env*", "tasks*", "graders*", "server*"]
