@@ -7,7 +7,7 @@ sdk: docker
 app_port: 8000
 pinned: false
 license: bsd-3-clause
-short_description: OpenEnv SOC simulator - AI agent detects & responds to cyber threats
+short_description: OpenEnv SOC simulator for AI agents
 ---
 
 # 🛡️ AI Cybersecurity Incident Response Environment (SOC Simulator)
