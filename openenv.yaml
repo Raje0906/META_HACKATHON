@@ -1,0 +1,227 @@
+spec_version: 1
+name: soc_simulator
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+
+# ─── Environment Metadata ──────────────────────────────────────────────────
+metadata:
+  display_name: "AI Cybersecurity Incident Response Environment (SOC Simulator)"
+  description: >
+    A production-grade OpenEnv environment simulating a real-world Security
+    Operations Center (SOC). An AI agent analyses structured log data, SIEM
+    alerts, and anomaly scores to detect threats and take mitigation actions.
+    Three tasks span easy → hard difficulty, covering phishing detection,
+    brute-force correlation, and multi-stage APT kill-chain analysis.
+  author: "SOC Simulator Team"
+  version: "1.0.0"
+  category: "cybersecurity"
+  tags:
+    - cybersecurity
+    - soc
+    - incident-response
+    - threat-detection
+    - reinforcement-learning
+    - agentic-ai
+
+# ─── Action Space ──────────────────────────────────────────────────────────
+action_space:
+  type: discrete_structured
+  description: "Analyst response actions in the SOC."
+  actions:
+    - name: block_ip
+      description: "Block a source IP address at the network perimeter firewall."
+      parameters:
+        target:
+          type: string
+          description: "IPv4 or IPv6 address to block."
+          required: true
+        reason:
+          type: string
+          description: "Justification for blocking."
+          required: false
+
+    - name: flag_user
+      description: "Flag a user account as suspected compromised, triggering MFA reset."
+      parameters:
+        target:
+          type: string
+          description: "User ID / username to flag."
+          required: true
+        reason:
+          type: string
+          required: false
+
+    - name: isolate_host
+      description: "Network-isolate an endpoint (quarantine) to prevent lateral movement."
+      parameters:
+        target:
+          type: string
+          description: "Hostname or host ID to isolate."
+          required: true
+        reason:
+          type: string
+          required: false
+
+    - name: ignore
+      description: "Take no action — log as false positive / benign event."
+      parameters:
+        reason:
+          type: string
+          required: false
+
+    - name: escalate_alert
+      description: "Escalate to Tier-3 Incident Response team for immediate handling."
+      parameters:
+        reason:
+          type: string
+          required: false
+
+# ─── Observation Space ─────────────────────────────────────────────────────
+observation_space:
+  type: structured_json
+  description: "SOC dashboard snapshot returned after each step."
+  fields:
+    done:
+      type: boolean
+      description: "Whether the episode has ended."
+    reward:
+      type: float
+      description: "Per-step reward signal."
+    task_id:
+      type: string
+      description: "Active task identifier."
+    step_number:
+      type: integer
+      description: "Current step within the episode."
+    timestamp:
+      type: datetime
+      description: "Wall-clock time of this observation."
+    recent_events:
+      type: array
+      description: "Last N structured security log events (SIEM window)."
+      items:
+        event_id: string
+        timestamp: datetime
+        event_type: string   # login_success | login_failure | phishing_email | ...
+        source_ip: string
+        dest_ip: string
+        user_id: string
+        host_id: string
+        country: string
+        details: object
+        raw_log: string
+    active_alerts:
+      type: array
+      description: "SIEM-generated alerts currently requiring analyst attention."
+      items:
+        alert_id: string
+        title: string
+        description: string
+        threat_level: string  # critical | high | medium | low | info
+        anomaly_score: float  # 0.0 – 1.0
+        mitre_tactic: string
+        mitre_technique: string
+    system_state:
+      type: object
+      description: "Current infrastructure posture."
+      fields:
+        active_connections: integer
+        blocked_ips: array
+        flagged_users: array
+        isolated_hosts: array
+        open_incidents: integer
+        risk_score: float   # 0.0 – 1.0
+    network_anomaly_score:
+      type: float
+      description: "Behavioural analytics network-wide anomaly score (0–1)."
+    attack_stage:
+      type: string
+      description: "Current detected attack stage (hard task only)."
+
+# ─── Tasks ─────────────────────────────────────────────────────────────────
+tasks:
+  - id: easy_phishing_login
+    difficulty: easy
+    max_steps: 5
+    description: >
+      A phishing email with credential-harvesting link is sent to alice.chen
+      from a known Tor exit node (185.220.101.47, RU). 14 minutes later,
+      a successful VPN login from the same IP with MFA bypassed is detected.
+      The agent must block the attacker IP and flag the compromised user.
+    objectives:
+      - "Block IP: 185.220.101.47"
+      - "Flag user: alice.chen"
+    optimal_score: 1.0
+
+  - id: medium_brute_force_geo
+    difficulty: medium
+    max_steps: 8
+    description: >
+      23 failed SSH authentication attempts against finance.admin on FINANCE-SRV-01
+      from 2 Chinese IPs over 8 minutes, followed by a successful login with
+      post-authentication reconnaissance commands. Agent must correlate the
+      brute-force pattern with the geo-anomaly success event.
+    objectives:
+      - "Block IP: 45.142.212.100 (primary attacker)"
+      - "Block IP: 91.108.56.22 (secondary attacker)"
+      - "Flag user: finance.admin"
+      - "Isolate host: FINANCE-SRV-01"
+    optimal_score: 1.0
+
+  - id: hard_apt_multistage
+    difficulty: hard
+    max_steps: 15
+    description: >
+      A full APT kill-chain attack: (1) port scan + DNS enumeration from 198.51.100.77,
+      (2) web shell planted via CVE-2024-1234 + reverse shell on WEB-SRV-01,
+      (3) credential dump (mimikatz) + RDP lateral movement to FINANCE-DB-01,
+      (4) 4.2 GB data exfiltration to C2 (198.51.100.77). Agent must detect
+      each stage and respond in sequence.
+    objectives:
+      - "Block C2 IP: 198.51.100.77"
+      - "Isolate host: WEB-SRV-01 (initial access)"
+      - "Isolate host: FINANCE-DB-01 (lateral movement)"
+      - "Flag user: backup-svc (compromised service account)"
+      - "Escalate alert (data exfiltration detected)"
+    optimal_score: 1.0
+
+# ─── Reward Design ──────────────────────────────────────────────────────────
+reward:
+  type: dense
+  range: [-∞, 1.0]   # Per-step, cumulative
+  components:
+    correct_block_ip: +0.30
+    correct_flag_user: +0.25
+    correct_isolate_host: +0.25
+    correct_escalate: +0.15
+    correct_ignore: +0.05
+    stage_detection_bonus: +0.10
+    false_positive_penalty: -0.15
+    unnecessary_ignore: -0.20
+    redundant_action: -0.05
+    timestep_cost: -0.02
+    task_completion_bonus: +0.25
+    missed_threat_penalty: -0.30
+
+# ─── Endpoints ──────────────────────────────────────────────────────────────
+endpoints:
+  - path: /reset
+    method: POST
+    description: "Initialise a new episode."
+  - path: /step
+    method: POST
+    description: "Execute one action."
+  - path: /state
+    method: GET
+    description: "Return internal episode state."
+  - path: /score
+    method: GET
+    description: "Run grader and return final score."
+  - path: /health
+    method: GET
+    description: "Liveness probe."
+  - path: /web
+    method: GET
+    description: "Interactive web dashboard (requires ENABLE_WEB_INTERFACE=true)."

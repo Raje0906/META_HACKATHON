@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-03-30T15:06:03.594952Z",
+  "model": "meta-llama/Llama-3.3-70B-Instruct",
+  "api_base_url": "https://router.huggingface.co/v1",
+  "llm_enabled": false,
+  "average_score": 0.5967,
+  "total_duration_s": 0.01,
+  "results": [
+    {
+      "task_id": "easy_phishing_login",
+      "steps": 5,
+      "score": 0.9,
+      "explanation": {
+        "task_id": "easy_phishing_login",
+        "total_score": 0.9,
+        "ip_blocked": true,
+        "user_flagged": true,
+        "escalated": true,
+        "false_positives": 0,
+        "steps_taken": 5,
+        "early_detection": true
+      },
+      "duration_s": 0.0
+    },
+    {
+      "task_id": "medium_brute_force_geo",
+      "steps": 8,
+      "score": 0.25,
+      "explanation": {
+        "task_id": "medium_brute_force_geo",
+        "total_score": 0.25,
+        "primary_ip_blocked": false,
+        "secondary_ip_blocked": false,
+        "user_flagged": true,
+        "host_isolated": false,
+        "steps_taken": 8,
+        "false_positives": 0
+      },
+      "duration_s": 0.0
+    },
+    {
+      "task_id": "hard_apt_multistage",
+      "steps": 15,
+      "score": 0.64,
+      "explanation": {
+        "task_id": "hard_apt_multistage",
+        "total_score": 0.64,
+        "stages": {
+          "recon_detected": true,
+          "initial_access_contained": true,
+          "lateral_movement_contained": true,
+          "service_account_flagged": false,
+          "escalated": true
+        },
+        "detected_in_order": true,
+        "steps_taken": 15,
+        "attack_stages_detected": [
+          "reconnaissance",
+          "initial_access",
+          "lateral_movement"
+        ],
+        "false_positives": 2
+      },
+      "duration_s": 0.01
+    }
+  ]
+}
