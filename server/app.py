@@ -167,7 +167,7 @@ async def score():
 # Optional Web UI
 # ---------------------------------------------------------------------------
 
-ENABLE_WEB = os.getenv("ENABLE_WEB_INTERFACE", "false").lower() == "true"
+ENABLE_WEB = os.getenv("ENABLE_WEB_INTERFACE", "true").lower() == "true"
 
 
 @app.get("/web", response_class=HTMLResponse)
