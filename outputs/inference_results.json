@@ -1,42 +1,42 @@
 {
-  "timestamp": "2026-03-30T15:50:03.172537Z",
+  "timestamp": "2026-03-31T05:45:24.884619Z",
   "model": "meta-llama/Llama-3.3-70B-Instruct",
   "api_base_url": "https://router.huggingface.co/v1",
   "llm_enabled": true,
-  "average_score": 0.7967,
-  "total_duration_s": 19.07,
+  "average_score": 0.5967,
+  "total_duration_s": 10.59,
   "results": [
     {
       "task_id": "easy_phishing_login",
       "steps": 5,
-      "score": 0.8,
+      "score": 0.9,
       "explanation": {
         "task_id": "easy_phishing_login",
-        "total_score": 0.8,
+        "total_score": 0.9,
         "ip_blocked": true,
         "user_flagged": true,
-        "escalated": false,
+        "escalated": true,
         "false_positives": 1,
         "steps_taken": 5,
         "early_detection": true
       },
-      "duration_s": 4.17
+      "duration_s": 3.97
     },
     {
       "task_id": "medium_brute_force_geo",
       "steps": 8,
-      "score": 0.95,
+      "score": 0.25,
       "explanation": {
         "task_id": "medium_brute_force_geo",
-        "total_score": 0.95,
-        "primary_ip_blocked": true,
-        "secondary_ip_blocked": true,
+        "total_score": 0.25,
+        "primary_ip_blocked": false,
+        "secondary_ip_blocked": false,
         "user_flagged": true,
-        "host_isolated": true,
+        "host_isolated": false,
         "steps_taken": 8,
         "false_positives": 0
       },
-      "duration_s": 7.33
+      "duration_s": 2.25
     },
     {
       "task_id": "hard_apt_multistage",
@@ -61,7 +61,7 @@
         ],
         "false_positives": 2
       },
-      "duration_s": 7.57
+      "duration_s": 4.37
     }
   ]
 }

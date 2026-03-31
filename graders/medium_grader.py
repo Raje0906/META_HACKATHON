@@ -35,10 +35,10 @@ class MediumGrader:
         actions = state.agent_actions
         score = 0.0
 
-        blocked_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP}
-        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER}
+        blocked_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value}
+        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER.value}
         isolated_hosts = {
-            a["target"] for a in actions if a["action_type"] == ActionType.ISOLATE_HOST
+            a["target"] for a in actions if a["action_type"] == ActionType.ISOLATE_HOST.value
         }
 
         # ── Primary objectives ──────────────────────────────────────────
@@ -77,7 +77,7 @@ class MediumGrader:
         for i, a in enumerate(actions):
             if i >= threshold:
                 break
-            if a["action_type"] == ActionType.BLOCK_IP and a["target"] == PRIMARY_IP:
+            if a["action_type"] == ActionType.BLOCK_IP.value and a["target"] == PRIMARY_IP:
                 return True
         return False
 
@@ -86,19 +86,19 @@ class MediumGrader:
             "task_id": self.TASK_ID,
             "total_score": self.grade(state),
             "primary_ip_blocked": any(
-                a["action_type"] == ActionType.BLOCK_IP and a["target"] == PRIMARY_IP
+                a["action_type"] == ActionType.BLOCK_IP.value and a["target"] == PRIMARY_IP
                 for a in state.agent_actions
             ),
             "secondary_ip_blocked": any(
-                a["action_type"] == ActionType.BLOCK_IP and a["target"] == SECONDARY_IP
+                a["action_type"] == ActionType.BLOCK_IP.value and a["target"] == SECONDARY_IP
                 for a in state.agent_actions
             ),
             "user_flagged": any(
-                a["action_type"] == ActionType.FLAG_USER and a["target"] == THREAT_USER
+                a["action_type"] == ActionType.FLAG_USER.value and a["target"] == THREAT_USER
                 for a in state.agent_actions
             ),
             "host_isolated": any(
-                a["action_type"] == ActionType.ISOLATE_HOST and a["target"] == THREAT_HOST
+                a["action_type"] == ActionType.ISOLATE_HOST.value and a["target"] == THREAT_HOST
                 for a in state.agent_actions
             ),
             "steps_taken": state.step_count,

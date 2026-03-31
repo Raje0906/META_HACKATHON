@@ -31,6 +31,11 @@ import time
 import threading
 from pathlib import Path
 
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 ROOT = Path(__file__).parent.resolve()
 sys.path.insert(0, str(ROOT))
 
@@ -299,7 +304,7 @@ def check_inference_script() -> bool:
     if not inf_path.exists():
         return False
 
-    content = inf_path.read_text()
+    content = inf_path.read_text(encoding="utf-8")
 
     # Must use the 3 required env vars
     ok &= check("Uses API_BASE_URL env var", "API_BASE_URL" in content)
@@ -310,11 +315,15 @@ def check_inference_script() -> bool:
     ok &= check("Uses OpenAI client", "from openai import OpenAI" in content or "OpenAI(" in content)
 
     # Check it runs without error (heuristic mode — no API key needed)
+    
+    env_vars = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     result = subprocess.run(
         [sys.executable, str(inf_path)],
         cwd=str(ROOT),
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        env=env_vars,
         timeout=300,  # 5 min max
     )
     ok &= check(
@@ -359,7 +368,7 @@ def check_dockerfile() -> bool:
     if not df_path.exists():
         return False
 
-    content = df_path.read_text()
+    content = df_path.read_text(encoding="utf-8")
     ok &= check("FROM instruction present", "FROM" in content)
     ok &= check("EXPOSE 8000", "EXPOSE 8000" in content)
     ok &= check("CMD runs uvicorn", "uvicorn" in content)
@@ -455,7 +464,7 @@ def check_infra() -> bool:
     ok = True
 
     # Check inference.py has no heavy optional deps that would OOM on 8GB
-    inf_content = (ROOT / "inference.py").read_text()
+    inf_content = (ROOT / "inference.py").read_text(encoding="utf-8")
     heavy_imports = ["torch", "transformers", "scipy", "tensorflow", "jax"]
     for lib in heavy_imports:
         has_lib = f"import {lib}" in inf_content or f"from {lib}" in inf_content

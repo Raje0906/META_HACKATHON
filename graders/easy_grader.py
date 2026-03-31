@@ -46,14 +46,14 @@ class EasyGrader:
 
         actions = state.agent_actions  # list of action dicts
 
-        # Collect unique action types and targets
+        # Collect unique action types and targets using robust ENUM value parsing
         block_ips = {
-            a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP
+            a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value
         }
         flagged_users = {
-            a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER
+            a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER.value
         }
-        escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT for a in actions)
+        escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions)
 
         # ── Primary objectives ────────────────────────────────────────────
         if THREAT_IP in block_ips:
@@ -89,9 +89,9 @@ class EasyGrader:
         for i, action in enumerate(actions):
             if i >= threshold_steps:
                 break
-            if action["action_type"] == ActionType.BLOCK_IP and action["target"] == THREAT_IP:
+            if action["action_type"] == ActionType.BLOCK_IP.value and action["target"] == THREAT_IP:
                 ip_blocked_early = True
-            if action["action_type"] == ActionType.FLAG_USER and action["target"] == THREAT_USER:
+            if action["action_type"] == ActionType.FLAG_USER.value and action["target"] == THREAT_USER:
                 user_flagged_early = True
 
         return ip_blocked_early or user_flagged_early
@@ -99,15 +99,15 @@ class EasyGrader:
     def explain(self, state: SOCState) -> dict:
         """Return a detailed breakdown of the score components."""
         actions = state.agent_actions
-        block_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP}
-        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER}
+        block_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value}
+        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER.value}
 
         return {
             "task_id": self.TASK_ID,
             "total_score": self.grade(state),
             "ip_blocked": THREAT_IP in block_ips,
             "user_flagged": THREAT_USER in flagged_users,
-            "escalated": any(a["action_type"] == ActionType.ESCALATE_ALERT for a in actions),
+            "escalated": any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions),
             "false_positives": state.false_positives,
             "steps_taken": state.step_count,
             "early_detection": self._check_early_detection(actions, 3),

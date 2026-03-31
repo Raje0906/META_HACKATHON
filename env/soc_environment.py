@@ -273,7 +273,7 @@ class SOCEnvironment:
 
         return reward, info
 
-    def _evaluate_block_ip(self, action, threats, reward, info):
+    def _evaluate_block_ip(self, action: SOCAction, threats: dict, reward: float, info: dict) -> Tuple[float, dict]:
         """Check if the blocked IP is malicious or benign."""
         target_ip = action.target or ""
         threat_ips = set()
@@ -296,7 +296,7 @@ class SOCEnvironment:
 
         return reward, info
 
-    def _evaluate_flag_user(self, action, threats, reward, info):
+    def _evaluate_flag_user(self, action: SOCAction, threats: dict, reward: float, info: dict) -> Tuple[float, dict]:
         """Check if the flagged user is compromised."""
         target_user = action.target or ""
         threat_users = set()
@@ -317,7 +317,7 @@ class SOCEnvironment:
 
         return reward, info
 
-    def _evaluate_isolate_host(self, action, threats, reward, info):
+    def _evaluate_isolate_host(self, action: SOCAction, threats: dict, reward: float, info: dict) -> Tuple[float, dict]:
         """Check if the isolated host is compromised."""
         target_host = action.target or ""
         threat_hosts = set()
@@ -338,7 +338,7 @@ class SOCEnvironment:
 
         return reward, info
 
-    def _evaluate_escalate(self, threats, reward, info):
+    def _evaluate_escalate(self, threats: dict, reward: float, info: dict) -> Tuple[float, dict]:
         """Escalate is rewarded when there are active unresolved critical threats."""
         unresolved = self._get_unresolved_threats()
         if unresolved:
@@ -372,7 +372,7 @@ class SOCEnvironment:
 
         return list(all_threat_ids - addressed)
 
-    def _update_hard_task_stage(self, action, threats):
+    def _update_hard_task_stage(self, action: SOCAction, threats: dict) -> None:
         """Track which attack stages the agent has responded to (hard task only)."""
         stage_map = {
             f"block:{threats.get('c2_ip')}": "reconnaissance",

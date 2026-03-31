@@ -37,12 +37,12 @@ class HardGrader:
         actions = state.agent_actions
         score = 0.0
 
-        blocked_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP}
+        blocked_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value}
         isolated_hosts = {
-            a["target"] for a in actions if a["action_type"] == ActionType.ISOLATE_HOST
+            a["target"] for a in actions if a["action_type"] == ActionType.ISOLATE_HOST.value
         }
-        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER}
-        escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT for a in actions)
+        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER.value}
+        escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions)
 
         # ── Stage-by-stage scoring ───────────────────────────────────────
         # Stage 1: Recon — block C2 IP
@@ -82,7 +82,7 @@ class HardGrader:
 
         return round(max(0.0, min(1.0, score)), 4)
 
-    def _all_stages_covered(self, blocked_ips, isolated_hosts, flagged_users, escalated) -> bool:
+    def _all_stages_covered(self, blocked_ips: set, isolated_hosts: set, flagged_users: set, escalated: bool) -> bool:
         return (
             C2_IP in blocked_ips
             and "WEB-SRV-01" in isolated_hosts
@@ -98,13 +98,13 @@ class HardGrader:
         """
         stage_sequence = []
         for a in actions:
-            if a["action_type"] == ActionType.BLOCK_IP and a["target"] == C2_IP:
+            if a["action_type"] == ActionType.BLOCK_IP.value and a["target"] == C2_IP:
                 stage_sequence.append("recon")
-            elif a["action_type"] == ActionType.ISOLATE_HOST and a["target"] == "WEB-SRV-01":
+            elif a["action_type"] == ActionType.ISOLATE_HOST.value and a["target"] == "WEB-SRV-01":
                 stage_sequence.append("initial_access")
-            elif a["action_type"] == ActionType.ISOLATE_HOST and a["target"] == "FINANCE-DB-01":
+            elif a["action_type"] == ActionType.ISOLATE_HOST.value and a["target"] == "FINANCE-DB-01":
                 stage_sequence.append("lateral")
-            elif a["action_type"] == ActionType.ESCALATE_ALERT:
+            elif a["action_type"] == ActionType.ESCALATE_ALERT.value:
                 stage_sequence.append("exfil")
 
         expected = ["recon", "initial_access", "lateral", "exfil"]
@@ -114,12 +114,12 @@ class HardGrader:
 
     def explain(self, state: SOCState) -> dict:
         actions = state.agent_actions
-        blocked_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP}
+        blocked_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value}
         isolated_hosts = {
-            a["target"] for a in actions if a["action_type"] == ActionType.ISOLATE_HOST
+            a["target"] for a in actions if a["action_type"] == ActionType.ISOLATE_HOST.value
         }
-        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER}
-        escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT for a in actions)
+        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER.value}
+        escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions)
 
         return {
             "task_id": self.TASK_ID,
