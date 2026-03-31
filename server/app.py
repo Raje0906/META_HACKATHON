@@ -83,6 +83,15 @@ class StepResponse(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 
+@app.get("/", include_in_schema=False)
+async def root():
+    """Welcome point for the API."""
+    return {
+        "status": "✅ SOC Simulator OpenEnv API is perfectly running!",
+        "message": "Visit /docs to see the interactive API payload Swagger UI, or call /health for liveness probe."
+    }
+
+
 @app.get("/health")
 async def health():
     """Liveness probe — used by HF Space and Docker healthchecks."""
