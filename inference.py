@@ -1,126 +1,49 @@
 """
-SOC Simulator — Baseline Inference Script
-==========================================
-Runs an LLM-powered SOC analyst agent against all three tasks and
-outputs deterministic, reproducible scores.
+SOC Simulator — Inference Script
+===================================
+MANDATORY (Submission Checklist)
+- API_BASE_URL: The API endpoint for the LLM.
+- MODEL_NAME:   The model identifier to use for inference.
+- HF_TOKEN:     Your Hugging Face / API key.
 
-Environment Variables (per submission checklist)
--------------------------------------------------
-  API_BASE_URL  — Base URL of the OpenAI-compatible LLM API endpoint
-                  e.g. "https://api-inference.huggingface.co/v1"
-                       "https://api.openai.com/v1"
-                       "http://localhost:11434/v1"   (Ollama)
-  MODEL_NAME    — Model identifier to use for inference
-                  e.g. "meta-llama/Llama-3.3-70B-Instruct"
-                       "gpt-4o-mini"
-  HF_TOKEN      — Your Hugging Face / API key (used as Authorization bearer)
-
-Usage
------
-  # With HuggingFace Inference API
-  set API_BASE_URL=https://api-inference.huggingface.co/v1
-  set MODEL_NAME=meta-llama/Llama-3.3-70B-Instruct
-  set HF_TOKEN=hf_...
-  python inference.py
-
-  # With OpenAI
-  set API_BASE_URL=https://api.openai.com/v1
-  set MODEL_NAME=gpt-4o-mini
-  set HF_TOKEN=sk-...
-  python inference.py
-
-  # No API key — heuristic agent runs automatically
-  python inference.py
-
-Runtime: < 5 minutes typical  |  Memory: < 1 GB  |  CPU: 2 vCPU compatible
+STDOUT FORMAT
+- [START] task=<task_name> env=soc_simulator model=<model_name>
+- [STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+- [END]   success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
 """
 
-from __future__ import annotations
-
+import asyncio
 import json
 import os
 import sys
-
-if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
-if sys.stderr and hasattr(sys.stderr, 'reconfigure'):
-    sys.stderr.reconfigure(encoding='utf-8')
-
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
-# ── Env var config (per submission checklist) ──────────────────────────────
-# API_BASE_URL = LLM API endpoint (e.g. https://router.huggingface.co/v1)
-# MODEL_NAME   = LLM model identifier
-# HF_TOKEN     = Your HuggingFace / API key
-API_BASE_URL: str = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME: str = os.getenv("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
-# Mirror the sample script: try HF_TOKEN first, then API_KEY as fallback
-API_KEY: Optional[str] = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+try:
+    from openai import OpenAI
+except ImportError:
+    print("openai package not installed. Run: pip install openai")
+    sys.exit(1)
 
-# ── Environment runs embedded — no external server needed ──────────────────
-# Add project root to path so imports resolve correctly
+# Add project root to path
 ROOT = os.path.dirname(os.path.abspath(__file__))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from env.soc_environment import SOCEnvironment          # noqa: E402
-from models import ActionType, SOCAction, SOCObservation  # noqa: E402
+from env.soc_environment import SOCEnvironment
+from models import ActionType, SOCAction, SOCObservation
 
-# ---------------------------------------------------------------------------
-# Task definitions
-# ---------------------------------------------------------------------------
+# --- Environment Configuration ---
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.3-70B-Instruct")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 
-TASKS = [
-    "easy_phishing_login",
-    "medium_brute_force_geo",
-    "hard_apt_multistage",
-]
+BENCHMARK = "soc_simulator"
+TASKS = ["easy_phishing_login", "medium_brute_force_geo", "hard_apt_multistage"]
+SUCCESS_SCORE_THRESHOLD = 0.1
 
-TASK_MAX_STEPS = {
-    "easy_phishing_login": 5,
-    "medium_brute_force_geo": 8,
-    "hard_apt_multistage": 15,
-}
-
-# ---------------------------------------------------------------------------
-# OpenAI Client (uses API_BASE_URL + HF_TOKEN per checklist)
-# ---------------------------------------------------------------------------
-
-def _build_llm_client():
-    """
-    Build an OpenAI-compatible client — matches the official sample script pattern:
-      client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    """
-    try:
-        from openai import OpenAI
-    except ImportError:
-        print("openai package not installed. Run: pip install openai")
-        sys.exit(1)
-
-    api_key = API_KEY or "EMPTY"    # "EMPTY" works for local/unauthenticated servers
-    return OpenAI(base_url=API_BASE_URL, api_key=api_key)
-
-
-def call_llm(client, messages: List[dict]) -> str:
-    """
-    Call the LLM via the OpenAI client.
-    Uses API_BASE_URL as the endpoint and HF_TOKEN as the bearer key.
-    """
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=messages,
-        temperature=0.0,     # Deterministic output
-        max_tokens=256,
-    )
-    return response.choices[0].message.content.strip()
-
-
-# ---------------------------------------------------------------------------
-# System prompt
-# ---------------------------------------------------------------------------
-
+# --- Prompts ---
 SYSTEM_PROMPT = """You are an expert AI Security Operations Center (SOC) analyst.
 You analyse security logs and SIEM alerts, then decide on the best response action.
 
@@ -146,7 +69,6 @@ Decision rules:
 Only use "ignore" when all events are clearly benign.
 Never block Google/Cloudflare DNS IPs (8.8.8.8, 1.1.1.1) or internal RFC1918 ranges."""
 
-
 def build_observation_prompt(obs: SOCObservation, step_num: int) -> str:
     """Convert a SOCObservation into a textual dashboard for the LLM."""
     lines = [
@@ -155,7 +77,7 @@ def build_observation_prompt(obs: SOCObservation, step_num: int) -> str:
         "",
     ]
 
-    # Active Alerts (most important — show first)
+    # Active Alerts
     alerts = obs.active_alerts
     if alerts:
         lines.append("━━━ ACTIVE SIEM ALERTS ━━━")
@@ -198,14 +120,25 @@ def build_observation_prompt(obs: SOCObservation, step_num: int) -> str:
     lines.append("Respond with ONLY a valid JSON action object.")
     return "\n".join(lines)
 
+# --- Logging Utils ---
+def log_start(task: str, env: str, model: str) -> None:
+    print(f"[START] task={task} env={env} model={model}", flush=True)
 
-# ---------------------------------------------------------------------------
-# Action parsing
-# ---------------------------------------------------------------------------
+def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
+    error_val = error if error else "null"
+    done_val = str(done).lower()
+    print(
+        f"[STEP] step={step} action={action} reward={reward:.2f} done={done_val} error={error_val}",
+        flush=True,
+    )
 
-def parse_action(raw: str, step_num: int) -> SOCAction:
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
+
+# --- LLM Integration ---
+def parse_action(raw: str) -> SOCAction:
     """Parse LLM JSON output into a SOCAction, with fallback to ignore."""
-    # Strip markdown code fences that some models add
     text = raw.strip()
     for fence in ("```json", "```JSON", "```"):
         if text.startswith(fence):
@@ -221,262 +154,84 @@ def parse_action(raw: str, step_num: int) -> SOCAction:
             reason=data.get("reason", ""),
             confidence=float(data.get("confidence", 1.0)),
         )
-    except (json.JSONDecodeError, ValueError, KeyError) as exc:
-        print(f"    ⚠ Parse error on step {step_num}: {exc} — defaulting to ignore")
+    except Exception:
         return SOCAction(action_type=ActionType.IGNORE, reason="llm_parse_error")
 
-
-# ---------------------------------------------------------------------------
-# Heuristic fallback agent (no LLM needed)
-# ---------------------------------------------------------------------------
-
-def heuristic_action(obs: SOCObservation) -> SOCAction:
-    """
-    Rule-based SOC analyst — used when no API key is configured.
-    Provides a reasonable baseline and ensures inference.py always produces scores.
-    """
-    ss = obs.system_state
-    blocked = set(ss.blocked_ips)
-    flagged = set(ss.flagged_users)
-    isolated = set(ss.isolated_hosts)
-
-    # Priority ordering: work through alerts highest severity first
-    sorted_alerts = sorted(
-        obs.active_alerts,
-        key=lambda a: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(a.threat_level, 4),
-    )
-
-    for _alert in sorted_alerts:
-        # Inspect events correlated with this alert
-        for ev in obs.recent_events:
-            ip = ev.source_ip
-            country = ev.country or "US"
-            etype = ev.event_type.value if hasattr(ev.event_type, "value") else str(ev.event_type)
-            user = ev.user_id
-            host = ev.host_id
-
-            # Block malicious external IPs
-            if ip and country not in ("US",) and ip not in blocked:
-                if etype in (
-                    "phishing_email", "port_scan", "data_exfiltration",
-                    "malware_execution", "network_scan",
-                ):
-                    return SOCAction(
-                        action_type=ActionType.BLOCK_IP,
-                        target=ip,
-                        reason=f"Malicious {etype} from {country}",
-                    )
-
-            # Flag compromised accounts (geo-anomaly login)
-            if user and user not in flagged and etype == "login_success":
-                if country not in ("US",):
-                    return SOCAction(
-                        action_type=ActionType.FLAG_USER,
-                        target=user,
-                        reason=f"Geo-anomaly login from {country}",
-                    )
-
-            # Isolate compromised hosts
-            if host and host not in isolated:
-                if etype in ("malware_execution", "lateral_movement", "data_exfiltration"):
-                    return SOCAction(
-                        action_type=ActionType.ISOLATE_HOST,
-                        target=host,
-                        reason=f"Compromised host — {etype}",
-                    )
-
-        # Escalate critical alerts that haven't been resolved by specific actions
-        if _alert.threat_level in ("critical", "high"):
-            return SOCAction(
-                action_type=ActionType.ESCALATE_ALERT,
-                reason=f"Unresolved {_alert.threat_level} alert: {_alert.title}",
-            )
-
-    return SOCAction(action_type=ActionType.IGNORE, reason="No active threat detected")
-
-
-# ---------------------------------------------------------------------------
-# Single task runner
-# ---------------------------------------------------------------------------
-
-def run_task(
-    env: SOCEnvironment,
-    task_id: str,
-    llm_client=None,
-) -> dict:
-    """
-    Run one complete episode.
-
-    Returns
-    -------
-    dict with: task_id, steps, score, explanation, duration_s
-    """
-    start_time = time.time()
-    max_steps = TASK_MAX_STEPS.get(task_id, 10)
-    use_llm = llm_client is not None
-
-    print(f"\n{'═' * 62}")
-    print(f"  TASK : {task_id}")
-    print(f"  Mode : {'LLM (' + MODEL_NAME + ')' if use_llm else 'Heuristic baseline'}")
-    print(f"{'═' * 62}")
-
-    # ── Reset ────────────────────────────────────────────────────────────
-    obs = env.reset(task_id=task_id)
-    print(f"  Episode: {env.state.episode_id}")
-    print(f"  Alerts : {len(obs.active_alerts)} | Events: {len(obs.recent_events)}")
-
-    conversation = [{"role": "system", "content": SYSTEM_PROMPT}]
-    step_num = 0
-
-    # ── Agent loop ────────────────────────────────────────────────────────
-    while not obs.done and step_num < max_steps:
-        step_num += 1
-
-        if use_llm:
-            user_prompt = build_observation_prompt(obs, step_num)
-            conversation.append({"role": "user", "content": user_prompt})
-            try:
-                raw_response = call_llm(llm_client, conversation)
-                action = parse_action(raw_response, step_num)
-                conversation.append({"role": "assistant", "content": raw_response})
-            except Exception as exc:
-                print(f"    ⚠ LLM call failed: {exc} — using heuristic fallback")
-                action = heuristic_action(obs)
-        else:
-            action = heuristic_action(obs)
-
-        target_display = action.target or ""
-        print(
-            f"\n  Step {step_num:>2}: {action.action_type:<18} "
-            f"target={target_display:<22} reason={action.reason[:50] if action.reason else ''}"
+def get_model_message(client: OpenAI, conversation: List[dict]) -> str:
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=conversation,
+            temperature=0.0,
+            max_tokens=256,
+            stream=False,
         )
+        return (completion.choices[0].message.content or "").strip()
+    except Exception as exc:
+        # If API key is missing or call fails, return a default ignore action
+        return '{"action_type": "ignore", "reason": "api_call_failed"}'
 
-        obs = env.step(action)
-        print(
-            f"           reward={obs.reward:+.3f}  "
-            f"done={obs.done}  "
-            f"risk={obs.system_state.risk_score:.0%}  "
-            f"FP={obs.metadata.get('false_positives', 0)}"
-        )
+# --- Task Execution ---
+async def run_task_episode(client: OpenAI, env: SOCEnvironment, task_id: str) -> bool:
+    log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
+    
+    rewards = []
+    steps_taken = 0
+    score = 0.0
+    success = False
+    
+    try:
+        obs = env.reset(task_id=task_id)
+        conversation = [{"role": "system", "content": SYSTEM_PROMPT}]
+        
+        # Max steps per task
+        max_steps = 15 if "hard" in task_id else (8 if "medium" in task_id else 5)
+        
+        for step in range(1, max_steps + 1):
+            if obs.done:
+                break
+                
+            prompt = build_observation_prompt(obs, step)
+            conversation.append({"role": "user", "content": prompt})
+            
+            raw_response = get_model_message(client, conversation)
+            action = parse_action(raw_response)
+            conversation.append({"role": "assistant", "content": raw_response})
+            
+            # Format action for logging
+            action_desc = f"{action.action_type}:{action.target}" if action.target else f"{action.action_type}"
+            
+            obs = env.step(action)
+            reward = obs.reward
+            done = obs.done
+            
+            rewards.append(reward)
+            steps_taken = step
+            
+            log_step(step=step, action=action_desc, reward=reward, done=done, error=None)
+            
+            if done:
+                break
+                
+        score = env.get_final_score() # Already in [0, 1]
+        success = score >= SUCCESS_SCORE_THRESHOLD
+        
+    except Exception as e:
+        # Emit a step with error if something crashes mid-episode
+        log_step(step=steps_taken+1, action="error", reward=0.0, done=True, error=str(e))
+    finally:
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+        
+    return success
 
-    # ── Score ─────────────────────────────────────────────────────────────
-    final_score = env.get_final_score()
-    explanation = env.get_score_explanation()
-    duration = round(time.time() - start_time, 2)
-
-    assert 0.0 <= final_score <= 1.0, f"Score out of range: {final_score}"
-
-    bar = "█" * int(final_score * 20) + "░" * (20 - int(final_score * 20))
-    print(f"\n  Score : [{bar}] {final_score:.4f} ({final_score:.1%})")
-    print(f"  Steps : {step_num}  |  Duration: {duration}s")
-
-    return {
-        "task_id": task_id,
-        "steps": step_num,
-        "score": round(final_score, 4),
-        "explanation": explanation,
-        "duration_s": duration,
-    }
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-def main() -> int:
-    """
-    Entry point — runs all 3 tasks and outputs scores.
-    Exit code: 0 on success, 1 on fatal error.
-    """
-    print("🛡  SOC SIMULATOR — BASELINE INFERENCE")
-    print(f"   Time       : {datetime.utcnow().isoformat()}Z")
-    print(f"   API_BASE_URL: {API_BASE_URL}")
-    print(f"   MODEL_NAME  : {MODEL_NAME}")
-    print(f"   HF_TOKEN    : {'set (' + API_KEY[:8] + '...)' if API_KEY else 'NOT SET'}")
-
-    # ── Initialise LLM client ────────────────────────────────────────────
-    llm_client = None
-    if API_KEY:
-        try:
-            llm_client = _build_llm_client()
-            # Quick connectivity test with a minimal call
-            test = llm_client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[{"role": "user", "content": "Reply with the word OK only."}],
-                max_tokens=5,
-            )
-            print(f"\n   LLM ping   : ✅  response='{test.choices[0].message.content.strip()}'")
-        except Exception as exc:
-            print(f"\n   ⚠ LLM unavailable ({exc}) — falling back to heuristic agent.")
-            llm_client = None
-    else:
-        print("\n   ⚠ HF_TOKEN not set — using heuristic baseline agent.")
-        print("     Set API_BASE_URL, MODEL_NAME, HF_TOKEN to enable LLM mode.")
-
-    # ── Run all tasks ────────────────────────────────────────────────────
+async def main() -> None:
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY or "EMPTY")
     env = SOCEnvironment()
-    results = []
-
+    
     for task_id in TASKS:
-        try:
-            result = run_task(env, task_id, llm_client=llm_client)
-            results.append(result)
-        except Exception as exc:
-            import traceback
-            print(f"\n  ❌ Task {task_id} failed: {exc}")
-            traceback.print_exc()
-            results.append({
-                "task_id": task_id,
-                "steps": 0,
-                "score": 0.0,
-                "explanation": {},
-                "error": str(exc),
-            })
-
-    # ── Summary ───────────────────────────────────────────────────────────
-    print(f"\n{'═' * 62}")
-    print("  FINAL RESULTS SUMMARY")
-    print(f"{'═' * 62}")
-
-    total_score = 0.0
-    all_valid = True
-    for r in results:
-        score = r.get("score", 0.0)
-        total_score += score
-        bar = "█" * int(score * 20) + "░" * (20 - int(score * 20))
-        status = "✅" if 0.0 <= score <= 1.0 else "❌"
-        print(f"  {status} {r['task_id']:<32} [{bar}] {score:.1%}")
-        if not (0.0 <= score <= 1.0):
-            all_valid = False
-
-    avg = total_score / len(results) if results else 0.0
-    total_time = sum(r.get("duration_s", 0) for r in results)
-
-    print(f"\n  Average Score : {avg:.4f} ({avg:.1%})")
-    print(f"  Total Time    : {total_time:.1f}s")
-    print(f"  All scores in [0,1]: {'✅ YES' if all_valid else '❌ NO'}")
-    print(f"{'═' * 62}\n")
-
-    # ── Write results JSON ────────────────────────────────────────────────
-    output_dir = os.path.join(ROOT, "outputs")
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "inference_results.json")
-
-    payload = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "model": MODEL_NAME,
-        "api_base_url": API_BASE_URL,
-        "llm_enabled": llm_client is not None,
-        "average_score": round(avg, 4),
-        "total_duration_s": round(total_time, 2),
-        "results": results,
-    }
-    with open(output_path, "w") as f:
-        json.dump(payload, f, indent=2)
-    print(f"  Results saved → {output_path}")
-
-    return 0 if all_valid else 1
-
+        await run_task_episode(client, env, task_id)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    asyncio.run(main())
