@@ -99,7 +99,7 @@ async def health():
 
 
 @app.post("/reset", response_model=SOCObservation)
-async def reset(request: ResetRequest):
+async def reset(request: Optional[ResetRequest] = None):
     """
     Reset the environment and start a new episode.
 
@@ -108,6 +108,9 @@ async def reset(request: ResetRequest):
     - `medium_brute_force_geo`  — Correlate brute-force + geo-anomaly
     - `hard_apt_multistage`     — Multi-stage APT kill chain
     """
+    if request is None:
+        request = ResetRequest()
+        
     try:
         obs = _env.reset(
             task_id=request.task_id,
