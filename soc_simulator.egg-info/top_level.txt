@@ -1,4 +1,0 @@
-env
-graders
-server
-tasks

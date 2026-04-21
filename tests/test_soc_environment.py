@@ -367,3 +367,43 @@ class TestFullEpisode:
                 env.step(a)
             score = env.get_final_score()
             assert 0.0 <= score <= 1.0, f"Score out of range for {task_id}: {score}"
+
+# ─── Upgrades Integration Tests ─────────────────────────────────────────────
+
+from env.red_agent import RedAgent, BlueMemory
+from env.dynamic_input import DynamicInputPipeline
+from env.schema_drift import SchemaDriftEngine
+
+class TestUpgrades:
+    def test_red_agent_mutation(self):
+        agent = RedAgent(seed=42)
+        blue_mem = BlueMemory(blocked_ips={"1.2.3.4"}, flagged_users={"bob"}, isolated_hosts=set(), episode_score=0.8)
+        scenario = agent.get_mutated_scenario("easy_phishing_login", blue_mem)
+        assert "attacker_ip" in scenario
+        assert scenario["attacker_ip"] != "185.220.101.47"
+
+    def test_dynamic_input_pipeline_adapt_difficulty(self):
+        pipeline = DynamicInputPipeline()
+        pipeline.record_episode_score(0.2)
+        pipeline.record_episode_score(0.2)
+        diff = pipeline.adapt_difficulty()
+        assert diff["difficulty_level"] == "easy"
+        
+        # Elevate scores
+        for _ in range(5):
+            pipeline.record_episode_score(0.9)
+        diff = pipeline.adapt_difficulty()
+        assert diff["difficulty_level"] == "hard"
+
+    def test_schema_drift_engine(self):
+        engine = SchemaDriftEngine(seed=42)
+        events = [{"event_type": "phishing_email", "source_ip": "1.2.3.4", "user_id": "alice"}]
+        
+        # Force a drift
+        engine._current_version = "v2"
+        drifted = engine.apply_drift(events)
+        
+        assert "evt_category" in drifted[0]
+        assert "src_addr" in drifted[0]
+        assert "username" in drifted[0]
+        assert "source_ip" not in drifted[0]

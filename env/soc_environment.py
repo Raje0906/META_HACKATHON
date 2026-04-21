@@ -28,6 +28,7 @@ from models import (
 )
 from tasks import EasyTask, MediumTask, HardTask
 from graders import EasyGrader, MediumGrader, HardGrader
+from env.schema_drift import SchemaDriftEngine
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +82,8 @@ class SOCEnvironment:
         self._grader = None
         self._current_task_id: Optional[str] = None
         self._step_history: list = []
+        self._custom_params: Dict[str, Any] = {}
+        self._schema_engine = SchemaDriftEngine()
 
     # -------------------------------------------------------------------------
     # OpenEnv API
@@ -117,7 +120,7 @@ class SOCEnvironment:
             )
 
         task_cls, grader_cls = TASK_REGISTRY[task_id]
-        self._task = task_cls()
+        self._task = task_cls(**kwargs)
         self._grader = grader_cls()
         self._current_task_id = task_id
         self._step_history = []
@@ -160,6 +163,14 @@ class SOCEnvironment:
         )
 
         initial_obs = self._task.get_initial_observation(ep_id)
+        
+        self._custom_params = kwargs
+        if self._custom_params.get("enable_schema_drift"):
+            # Step 0 drift (initializes to v1 and sets state)
+            self._schema_engine.maybe_drift(0)
+            initial_obs.recent_events = self._schema_engine.apply_drift(initial_obs.recent_events)
+            initial_obs.schema_version = self._schema_engine.current_version
+            
         return initial_obs
 
     def step(
@@ -210,6 +221,12 @@ class SOCEnvironment:
 
         # Build next observation
         obs = self._build_observation(reward=reward, done=done, info=info)
+        
+        if self._custom_params.get("enable_schema_drift"):
+            self._schema_engine.maybe_drift(self._state.step_count)
+            obs.recent_events = self._schema_engine.apply_drift(obs.recent_events)
+            obs.schema_version = self._schema_engine.current_version
+            
         return obs
 
     @property

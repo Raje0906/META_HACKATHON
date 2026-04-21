@@ -139,19 +139,60 @@ class EasyTask:
     Task definition for the EASY scenario.
 
     The environment exposes phishing + malicious-login events from step 0.
-    Correct responses: block_ip("185.220.101.47") and/or flag_user("alice.chen").
+    Correct responses: block_ip(target_ip) and/or flag_user(target_user).
     """
 
     TASK_ID = "easy_phishing_login"
     MAX_STEPS = 5
     DESCRIPTION = (
-        "A phishing email was sent to alice.chen from a Russian IP.  "
+        "A phishing email was sent to a user from a malicious IP.  "
         "Shortly after, a successful VPN login from the same IP was detected "
         "with MFA bypassed.  Identify and mitigate the threat."
     )
 
+    def __init__(self, **kwargs):
+        # Allow RedAgent or custom_params to override the static defaults
+        
+        # Threat IP logic (Check if RedAgent mutated, OR if Live Intel fed real IPs)
+        live_ips = kwargs.get("live_threat_ips", [])
+        if kwargs.get("attacker_ip"):
+            self.threat_ip = kwargs["attacker_ip"]
+        elif live_ips:
+            # Randomly pick one of the active live threat IPs if available
+            import random
+            self.threat_ip = random.choice(live_ips)
+        else:
+            self.threat_ip = THREAT_IP
+            
+        self.target_user = kwargs.get("target_user") or THREAT_USER
+
     def get_initial_observation(self, episode_id: str) -> SOCObservation:
-        """Return the starting state of the easy task."""
+        """Return the starting state of the easy task with dynamic substitutions."""
+        import copy
+        
+        # Deepcopy the static baseline structure so we don't pollute global models
+        p_evt = PHISHING_EVENT.model_copy(deep=True)
+        m_evt = MALICIOUS_LOGIN_EVENT.model_copy(deep=True)
+        b_evt = BENIGN_LOGIN_EVENT.model_copy(deep=True)
+        
+        p_alert = PHISHING_ALERT.model_copy(deep=True)
+        i_alert = IMPOSSIBLE_TRAVEL_ALERT.model_copy(deep=True)
+        
+        # Override values with the potentially mutated strings
+        p_evt.source_ip = self.threat_ip
+        p_evt.user_id = self.target_user
+        p_evt.raw_log = p_evt.raw_log.replace(THREAT_IP, self.threat_ip).replace(THREAT_USER, self.target_user)
+        
+        m_evt.source_ip = self.threat_ip
+        m_evt.user_id = self.target_user
+        m_evt.raw_log = m_evt.raw_log.replace(THREAT_IP, self.threat_ip).replace(THREAT_USER, self.target_user)
+        
+        p_alert.title = p_alert.title.replace(THREAT_USER, self.target_user)
+        p_alert.description = p_alert.description.replace(THREAT_USER, self.target_user)
+        
+        i_alert.title = i_alert.title.replace(THREAT_USER, self.target_user)
+        i_alert.description = i_alert.description.replace(THREAT_IP, self.threat_ip).replace(THREAT_USER, self.target_user)
+
         return SOCObservation(
             done=False,
             reward=0.0,
@@ -159,8 +200,8 @@ class EasyTask:
             task_id=self.TASK_ID,
             step_number=0,
             timestamp=datetime(2024, 6, 15, 9, 18, 5),
-            recent_events=[BENIGN_LOGIN_EVENT, PHISHING_EVENT, MALICIOUS_LOGIN_EVENT],
-            active_alerts=[PHISHING_ALERT, IMPOSSIBLE_TRAVEL_ALERT],
+            recent_events=[b_evt, p_evt, m_evt],
+            active_alerts=[p_alert, i_alert],
             system_state=SystemState(
                 active_connections=148,
                 blocked_ips=[],
@@ -177,10 +218,10 @@ class EasyTask:
         )
 
     def get_threat_targets(self) -> dict:
-        """Return ground-truth targets for grading."""
+        """Return dynamically-adjusted ground-truth targets for grading."""
         return {
-            "ip": THREAT_IP,
-            "user": THREAT_USER,
+            "ip": self.threat_ip,
+            "user": self.target_user,
             "event_ids": THREAT_EVENTS,
             "alert_ids": {"ALT-001", "ALT-002"},
         }

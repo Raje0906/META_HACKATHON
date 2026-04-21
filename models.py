@@ -181,9 +181,9 @@ class SOCObservation(BaseModel):
     step_number: int = Field(0, description="Current step within the episode.")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
-    recent_events: List[SecurityEvent] = Field(
+    recent_events: List[Any] = Field(
         default_factory=list,
-        description="Last N security log events visible to the agent.",
+        description="Last N security log events visible to the agent. Format may drift.",
     )
     active_alerts: List[Alert] = Field(
         default_factory=list,
@@ -206,6 +206,10 @@ class SOCObservation(BaseModel):
     hint: Optional[str] = Field(
         None,
         description="Optional contextual hint (used in easy tasks).",
+    )
+    schema_version: str = Field(
+        "v1",
+        description="Current SIEM log schema version (v1, v2, v3). Used to identify drift.",
     )
 
 
@@ -234,3 +238,63 @@ class SOCState(BaseModel):
     total_reward: float = Field(0.0)
     start_time: datetime = Field(default_factory=datetime.utcnow)
     attack_stages_detected: List[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Custom Parameters (Source C — Runtime Overrides for POST /reset)
+# ---------------------------------------------------------------------------
+
+class CustomParams(BaseModel):
+    """
+    Optional runtime overrides for the POST /reset request body.
+
+    All fields are optional with safe defaults (None / False).
+    When a field is provided, it overrides the corresponding scenario default.
+
+    Examples
+    --------
+    >>> CustomParams(attacker_ip="198.51.100.99", enable_red_agent=True)
+    >>> CustomParams(target_user="custom.user", attack_intensity=0.8)
+    """
+
+    attacker_ip: Optional[str] = Field(
+        None,
+        description=(
+            "Override the primary attacker source IP used in the scenario. "
+            "Should be a valid IPv4 address string."
+        ),
+    )
+    target_user: Optional[str] = Field(
+        None,
+        description="Override the targeted / compromised username in the scenario.",
+    )
+    attack_intensity: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Override scenario attack intensity on a [0, 1] scale. "
+            "Higher values increase event volume and anomaly scores."
+        ),
+    )
+    enable_red_agent: Optional[bool] = Field(
+        True,
+        description=(
+            "If True, activate the RedAgent adaptive adversary which mutates "
+            "the scenario based on the blue agent's previous-episode actions."
+        ),
+    )
+    use_live_threat_intel: Optional[bool] = Field(
+        True,
+        description=(
+            "If True, fetch fresh attacker IPs from live threat intel feeds "
+            "(URLhaus + Feodo Tracker) instead of using static scenario defaults."
+        ),
+    )
+    enable_schema_drift: Optional[bool] = Field(
+        True,
+        description=(
+            "If True, activate the SchemaDriftEngine which randomly mutates "
+            "log field names every 10 steps to test agent adaptability."
+        ),
+    )
