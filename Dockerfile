@@ -33,7 +33,7 @@ RUN mkdir -p outputs/logs outputs/evals && \
 USER appuser
 
 # ─── Environment variables ─────────────────────────────────────────────────
-ENV PORT=8000
+ENV PORT=7860
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV ENABLE_WEB_INTERFACE=true
@@ -43,7 +43,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # ─── Expose port ───────────────────────────────────────────────────────────
-EXPOSE 8000
+EXPOSE 7860
 
 # ─── Entry point ───────────────────────────────────────────────────────────
-CMD ["python", "-m", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["python", "-m", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
