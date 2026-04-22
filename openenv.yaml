@@ -3,7 +3,7 @@ name: soc_simulator
 type: space
 runtime: fastapi
 app: server.app:app
-port: 8000
+port: 7860
 
 # ─── Environment Metadata ──────────────────────────────────────────────────
 metadata:
@@ -218,7 +218,10 @@ endpoints:
     description: "Return internal episode state."
   - path: /score
     method: GET
-    description: "Run grader and return final score."
+    description: "Run grader and return final score with MITRE techniques."
+  - path: /explain
+    method: GET
+    description: "Return detailed score breakdown: true positives, false positives, missed threats, and per-action correctness."
   - path: /health
     method: GET
     description: "Liveness probe."

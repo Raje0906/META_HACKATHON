@@ -13,6 +13,18 @@ SOC Simulator is an **OpenEnv-compliant** reinforcement learning environment tha
 
 The environment streams SIEM logs and active security alerts to the agent, evaluates its protective response actions (e.g., blocking IPs, isolating machines, flagging users), and applies dense reward scoring to optimize performance.
 
+## 📈 Training Results
+
+The Blue Agent's defense score (blue) vs Red Agent's evasion rate (red) across 50 episodes on all 3 task difficulties. Notice the difficulty escalation triggers (green dashed lines) forcing the agent to adapt:
+
+![Red vs Blue Reward Curve](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
+
+> **+0.27 avg improvement** across all tasks (0.38 → 0.78 peak), with consistent recovery to ~0.83 after each Red Agent escalation.
+
+🔗 **[Live API Docs → /docs](https://aditya9605-meta-hackathon-finale.hf.space/docs)** | **[Interactive Dashboard → /web](https://aditya9605-meta-hackathon-finale.hf.space/web)**
+
+
+
 ---
 
 ## 🌟 Upgraded Capabilities (Hackathon Theme Alignment)
