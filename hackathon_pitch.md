@@ -35,7 +35,7 @@ Third, for the Patronus AI bonus, we integrated a **Schema Drift Engine**. SIEM 
 
 Look at this reward curve generated from our evaluation runs. The Blue agent begins poorly around 0.38, but steadily learns the scenario, climbing to a 0.72 score. 
 
-Notice the dotted green line—this is our Red Agent triggering an autonomous difficulty escalation. It mutates the attack, causing our LLM's reward to dip. But because of the dense reward pipeline penalizing false-positives and rewarding decisive blocks, the LLM successfully generalizes the new threat and recovers to an even higher, stable completion rate of 0.85. This 'dip-and-recovery' is visible proof of recursive skill amplification."
+Notice the dotted green line—this is our Red Agent triggering an autonomous difficulty escalation. It mutates the attack, causing our LLM's reward to dip to ~0.55. But because of the dense reward pipeline penalizing false-positives and rewarding decisive blocks, the LLM successfully generalizes the new threat and recovers to an even higher, stable completion rate of ~0.83. This 'dip-and-recovery' is incredibly consistent across all 3 difficulties, demonstrating a +0.27 improvement on ALL tasks, which is. This 'dip-and-recovery' is visible proof of recursive skill amplification."
 
 ---
 

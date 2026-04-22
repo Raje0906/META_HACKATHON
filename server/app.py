@@ -224,8 +224,21 @@ async def score():
         return {
             "score": final_score, 
             "explanation": explanation,
-            "red_score": _red_agent.red_score
+            "red_score": _red_agent.red_score,
+            "mitre_techniques": explanation.get("mitre_tactics", [])
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/explain")
+async def explain():
+    """Return a detailed breakdown of the score components and agent behavior."""
+    if _env.state is None:
+        raise HTTPException(status_code=400, detail="No active episode. Call /reset first.")
+    try:
+        explanation = _env.get_score_explanation()
+        return explanation
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

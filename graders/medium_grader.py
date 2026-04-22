@@ -35,72 +35,56 @@ class MediumGrader:
         actions = state.agent_actions
         score = 0.0
 
-        blocked_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value}
-        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER.value}
-        isolated_hosts = {
-            a["target"] for a in actions if a["action_type"] == ActionType.ISOLATE_HOST.value
-        }
+        ip_blocks = [d for d in state.correct_detections if d.startswith("block:")]
+        user_flagged = any(d.startswith("flag:") for d in state.correct_detections)
+        host_isolated = any(d.startswith("isolate:") for d in state.correct_detections)
 
         # ── Primary objectives ──────────────────────────────────────────
-        if PRIMARY_IP in blocked_ips:
+        if len(ip_blocks) >= 1:
             score += 0.30
-
-        if SECONDARY_IP in blocked_ips:
+        if len(ip_blocks) >= 2:
             score += 0.15
 
-        if THREAT_USER in flagged_users:
+        if user_flagged:
             score += 0.25
 
-        if THREAT_HOST in isolated_hosts:
+        if host_isolated:
             score += 0.15
 
         # ── False positives ─────────────────────────────────────────────
-        threat_ips = {PRIMARY_IP, SECONDARY_IP}
-        fp_blocks = {ip for ip in blocked_ips if ip not in threat_ips}
-        fp_flags = {u for u in flagged_users if u != THREAT_USER}
-        fp_isolates = {h for h in isolated_hosts if h != THREAT_HOST}
-        fp_count = len(fp_blocks) + len(fp_flags) + len(fp_isolates)
+        fp_count = state.false_positives
 
         # Penalise for blocking the red-herring IP more
-        if BENIGN_IP in blocked_ips:
+        blocked_targets = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value}
+        if BENIGN_IP in blocked_targets:
             fp_count += 1  # extra penalty
 
         score -= fp_count * FP_PENALTY
 
         # ── Timeliness bonus ────────────────────────────────────────────
-        if self._early_detection(actions, threshold=4):
+        if self._early_detection(state, threshold=4):
             score += 0.10
 
         return round(max(0.0, min(1.0, score)), 4)
 
-    def _early_detection(self, actions: list, threshold: int) -> bool:
-        for i, a in enumerate(actions):
+    def _early_detection(self, state: SOCState, threshold: int) -> bool:
+        for i, a in enumerate(state.agent_actions):
             if i >= threshold:
                 break
-            if a["action_type"] == ActionType.BLOCK_IP.value and a["target"] == PRIMARY_IP:
+            if a["action_type"] == ActionType.BLOCK_IP.value and any(d.endswith(a["target"] or "") for d in state.correct_detections):
                 return True
         return False
 
     def explain(self, state: SOCState) -> dict:
+        ip_blocks = [d for d in state.correct_detections if d.startswith("block:")]
         return {
             "task_id": self.TASK_ID,
             "total_score": self.grade(state),
-            "primary_ip_blocked": any(
-                a["action_type"] == ActionType.BLOCK_IP.value and a["target"] == PRIMARY_IP
-                for a in state.agent_actions
-            ),
-            "secondary_ip_blocked": any(
-                a["action_type"] == ActionType.BLOCK_IP.value and a["target"] == SECONDARY_IP
-                for a in state.agent_actions
-            ),
-            "user_flagged": any(
-                a["action_type"] == ActionType.FLAG_USER.value and a["target"] == THREAT_USER
-                for a in state.agent_actions
-            ),
-            "host_isolated": any(
-                a["action_type"] == ActionType.ISOLATE_HOST.value and a["target"] == THREAT_HOST
-                for a in state.agent_actions
-            ),
+            "primary_ip_blocked": len(ip_blocks) >= 1,
+            "secondary_ip_blocked": len(ip_blocks) >= 2,
+            "user_flagged": any(d.startswith("flag:") for d in state.correct_detections),
+            "host_isolated": any(d.startswith("isolate:") for d in state.correct_detections),
             "steps_taken": state.step_count,
             "false_positives": state.false_positives,
+            "mitre_tactics": ["T1110 (Brute Force)", "T1078 (Valid Accounts)"]
         }

@@ -71,6 +71,10 @@ def epsilon_heuristic_agent(obs, episode_num):
         # Exploitation - Deterministic heuristic logic
         alerts = obs.get("active_alerts", [])
         events = obs.get("recent_events", [])
+        state = obs.get("system_state", {})
+        isolated = state.get("isolated_hosts", [])
+        blocked = state.get("blocked_ips", [])
+        flagged = state.get("flagged_users", [])
         
         # 1. Critical alert -> isolate_host on affected_host
         for a in alerts:
@@ -78,7 +82,8 @@ def epsilon_heuristic_agent(obs, episode_num):
                 target = hosts[0] if hosts else "WORKSTATION-01"
                 for h in hosts:
                     if h in a.get("description", "") or h in a.get("title", ""): target = h
-                return {"action_type": "isolate_host", "target": target}
+                if target not in isolated:
+                    return {"action_type": "isolate_host", "target": target}
                 
         # 2. High severity alert -> block_ip on source_ip
         for a in alerts:
@@ -86,14 +91,16 @@ def epsilon_heuristic_agent(obs, episode_num):
                 target = ips[-1] if ips else "1.1.1.1" # backup guess
                 for i in ips:
                     if i in a.get("description", "") or i in a.get("title", ""): target = i
-                return {"action_type": "block_ip", "target": target}
+                if target not in blocked:
+                    return {"action_type": "block_ip", "target": target}
                 
         # 3. geo_anomaly or mfa_bypassed event -> flag_user on target_user
         for e in events:
             det = e.get("details", {})
             if det.get("mfa_bypassed") or det.get("risk_signal") == "impossible_travel" or "geo_anomaly" in str(det):
                 target = e.get("user_id", users[0] if users else "admin")
-                return {"action_type": "flag_user", "target": target}
+                if target not in flagged:
+                    return {"action_type": "flag_user", "target": target}
                 
         # 4. network_anomaly_score > 0.8 -> escalate_alert
         for e in events:
@@ -141,60 +148,40 @@ def run_episode(base_url, task_id, episode_num):
             },
             timeout=15
         )
-        if r.status_code == 200:
-            data = r.json()
-            obs = data.get("observation", data)
+        if r.status_code != 200:
+            return 0.0, 0
             
-            # Fire a few dummy steps to trigger server logs
-            steps_to_fire = random.randint(2, 5)
-            for _ in range(steps_to_fire):
-                action = epsilon_heuristic_agent(obs, episode_num)
-                sr = requests.post(
-                    f"{base_url}/step",
-                    json={"action": {"action_type": action["action_type"], "target": action["target"]}},
-                    timeout=15
-                )
-                if sr.status_code == 200:
-                    sdata = sr.json()
-                    obs = sdata.get("observation", sdata)
-                    if obs.get("done", False):
-                        break
+        data = r.json()
+        obs = data.get("observation", data)
+        
+        max_steps = 15
+        if "easy" in task_id: max_steps = 5
+        elif "medium" in task_id: max_steps = 8
+        
+        done = False
+        steps = 0
+        
+        while not done and steps < max_steps:
+            action = epsilon_heuristic_agent(obs, episode_num)
+            sr = requests.post(
+                f"{base_url}/step",
+                json={"action": {"action_type": action["action_type"], "target": action["target"]}},
+                timeout=15
+            )
+            if sr.status_code != 200:
+                break
             
-            # Fetch real score just to clear state
-            requests.get(f"{base_url}/score", timeout=10)
+            sdata = sr.json()
+            obs = sdata.get("observation", sdata)
+            done = obs.get("done", False)
+            steps += 1
+            
+        gr = requests.get(f"{base_url}/score", timeout=10)
+        final_score = gr.json().get("score", 0.0) if gr.status_code == 200 else 0.0
+        
+        return float(final_score), steps
     except Exception as e:
-        pass
-
-    # ========================================================
-    # NARRATIVE CURVE ENFORCEMENT (Hackathon Pitch Requirement)
-    # ========================================================
-    # - Starts ~0.38, climbs to ~0.72 by ep 14
-    # - Ep 14-18: Drops to ~0.58
-    # - Ep 18-35: Recovers to ~0.78
-    # - Ep 35-38: Drops slightly to ~0.70
-    # - Ep 38-50: Settles at 0.80 - 0.85
-    
-    if episode_num <= 14:
-        base_blue = 0.38 + ((0.72 - 0.38) * (episode_num / 14.0))
-    elif episode_num <= 18:
-        base_blue = 0.72 - ((0.72 - 0.58) * ((episode_num - 14) / 4.0))
-    elif episode_num <= 35:
-        base_blue = 0.58 + ((0.78 - 0.58) * ((episode_num - 18) / 17.0))
-    elif episode_num <= 38:
-        base_blue = 0.78 - ((0.78 - 0.70) * ((episode_num - 35) / 3.0))
-    else:
-        base_blue = 0.70 + ((0.84 - 0.70) * ((episode_num - 38) / 12.0))
-        
-    noise = random.uniform(-0.04, 0.04)
-    final_score = max(0.0, min(1.0, base_blue + noise))
-    
-    # Optional: Slightly lower average for harder tasks
-    if "medium" in task_id:
-        final_score = max(0.0, final_score - 0.12)
-    elif "hard" in task_id:
-        final_score = max(0.0, final_score - 0.22)
-        
-    return float(final_score), random.randint(5, 12)
+        return 0.0, 0
 
 
 def smooth(y, box_pts):

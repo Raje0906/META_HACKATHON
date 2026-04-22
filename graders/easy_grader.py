@@ -43,55 +43,45 @@ class EasyGrader:
     def grade(self, state: SOCState) -> float:
         """Compute and return a normalised score [0, 1]."""
         score = 0.0
+        actions = state.agent_actions
 
-        actions = state.agent_actions  # list of action dicts
-
-        # Collect unique action types and targets using robust ENUM value parsing
-        block_ips = {
-            a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value
-        }
-        flagged_users = {
-            a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER.value
-        }
+        ip_blocked = any(d.startswith("block:") for d in state.correct_detections)
+        user_flagged = any(d.startswith("flag:") for d in state.correct_detections)
         escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions)
 
         # ── Primary objectives ────────────────────────────────────────────
-        if THREAT_IP in block_ips:
+        if ip_blocked:
             score += 0.35
-
-        if THREAT_USER in flagged_users:
+        if user_flagged:
             score += 0.35
-
         if escalated:
             score += 0.10
 
         # ── False positive penalty ────────────────────────────────────────
-        false_positive_blocks = {ip for ip in block_ips if ip != THREAT_IP}
-        false_positive_flags = {u for u in flagged_users if u != THREAT_USER}
-        fp_count = len(false_positive_blocks) + len(false_positive_flags)
-        score -= fp_count * FP_PENALTY
+        score -= state.false_positives * FP_PENALTY
 
         # ── Timeliness bonus ──────────────────────────────────────────────
-        # Award bonus if correct actions taken within 3 steps
-        correct_early = self._check_early_detection(actions, threshold_steps=3)
+        correct_early = self._check_early_detection(state, threshold_steps=3)
         if correct_early:
             score += 0.10
 
-        # Clamp to [0, 1]
         score = round(max(0.0, min(MAX_SCORE, score)), 4)
         return score
 
-    def _check_early_detection(self, actions: list, threshold_steps: int) -> bool:
+    def _check_early_detection(self, state: SOCState, threshold_steps: int) -> bool:
         """Return True if the primary threat was acted upon within threshold_steps."""
+        # A simple proxy: if the agent made a correct detection within threshold
         ip_blocked_early = False
         user_flagged_early = False
-
-        for i, action in enumerate(actions):
+        
+        for i, action in enumerate(state.agent_actions):
             if i >= threshold_steps:
                 break
-            if action["action_type"] == ActionType.BLOCK_IP.value and action["target"] == THREAT_IP:
+            # If the specific action resulted in a valid correct detection, SOCEnvironment handles that logic
+            # but we can guess loosely for the grader:
+            if action["action_type"] == ActionType.BLOCK_IP.value and any(d.endswith(action["target"] or "") for d in state.correct_detections):
                 ip_blocked_early = True
-            if action["action_type"] == ActionType.FLAG_USER.value and action["target"] == THREAT_USER:
+            if action["action_type"] == ActionType.FLAG_USER.value and any(d.endswith(action["target"] or "") for d in state.correct_detections):
                 user_flagged_early = True
 
         return ip_blocked_early or user_flagged_early
@@ -99,16 +89,15 @@ class EasyGrader:
     def explain(self, state: SOCState) -> dict:
         """Return a detailed breakdown of the score components."""
         actions = state.agent_actions
-        block_ips = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value}
-        flagged_users = {a["target"] for a in actions if a["action_type"] == ActionType.FLAG_USER.value}
-
+        
         return {
             "task_id": self.TASK_ID,
             "total_score": self.grade(state),
-            "ip_blocked": THREAT_IP in block_ips,
-            "user_flagged": THREAT_USER in flagged_users,
+            "ip_blocked": any(d.startswith("block:") for d in state.correct_detections),
+            "user_flagged": any(d.startswith("flag:") for d in state.correct_detections),
             "escalated": any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions),
             "false_positives": state.false_positives,
             "steps_taken": state.step_count,
-            "early_detection": self._check_early_detection(actions, 3),
+            "early_detection": self._check_early_detection(state, 3),
+            "mitre_tactics": ["T1078 (Valid Accounts)", "T1566 (Phishing)"]
         }
