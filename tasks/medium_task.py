@@ -166,6 +166,9 @@ class MediumTask:
 
     TASK_ID = "medium_brute_force_geo"
     MAX_STEPS = 8
+
+    def __init__(self, **kwargs):
+        pass
     DESCRIPTION = (
         "23 failed SSH logins against the finance server from Chinese IPs, "
         "followed by a successful login with post-auth recon commands.  "

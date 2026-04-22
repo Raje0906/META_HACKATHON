@@ -349,6 +349,10 @@ class HardTask:
 
     TASK_ID = "hard_apt_multistage"
     MAX_STEPS = 15
+    
+    def __init__(self, **kwargs):
+        pass
+
     DESCRIPTION = (
         "A multi-stage APT attack: port scan → web shell → credential dump "
         "→ lateral movement → 4.2 GB data exfiltration.  "
