@@ -429,9 +429,30 @@ class SOCEnvironment:
             alerts = self._task.get_alerts_for_stage(current_stage)
             attack_stage = current_stage
         else:
-            obs = self._task.get_initial_observation(self._state.episode_id)
-            events = obs.recent_events
-            alerts = obs.active_alerts
+            # ── Live reactive observations for easy / medium tasks ──────
+            # Pull the base scenario events and alerts, then filter out
+            # alerts whose primary threat targets have already been
+            # correctly addressed by the agent.
+            base_obs = self._task.get_initial_observation(self._state.episode_id)
+            events = base_obs.recent_events
+            addressed = set(self._state.correct_detections)
+
+            # Filter alerts: remove those whose related threat is resolved
+            live_alerts = []
+            for alert in base_obs.active_alerts:
+                alert_resolved = False
+                desc = (alert.description or "") + " " + (alert.title or "")
+                # Check if any correctly-detected target appears in this alert
+                for det in addressed:
+                    # det is like "block:185.220.101.47" or "flag:alice.chen"
+                    _, target_val = det.split(":", 1) if ":" in det else ("", det)
+                    if target_val and target_val in desc:
+                        alert_resolved = True
+                        break
+                if not alert_resolved:
+                    live_alerts.append(alert)
+
+            alerts = live_alerts
             attack_stage = None
 
         # Build system state from current detections
