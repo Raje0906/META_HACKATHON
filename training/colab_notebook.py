@@ -14,6 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from IPython.display import Image, display
+from collections import defaultdict, Counter
 
 # ==========================================
 # CONFIGURATION
@@ -25,6 +26,13 @@ EPISODES = 50
 TASKS = ["easy_phishing_login", "medium_brute_force_geo", "hard_apt_multistage"]
 WARMUP_TIMEOUT = 60
 os.makedirs("outputs/evals", exist_ok=True)
+
+# ── Q-Table ─────────────────────────────────────────────────────────────────
+# Maps (task_id, action_type) → Q-value
+Q_TABLE = defaultdict(lambda: defaultdict(float))
+Q_ALPHA = 0.1  # Learning rate
+
+ALL_ACTIONS = ["block_ip", "flag_user", "isolate_host", "escalate_alert", "ignore"]
 
 # %%CELL 3%%
 # Environment Warmup & Agent Definitions
@@ -44,10 +52,16 @@ def warmup_space(base_url):
     print("WARNING: HF Space did not respond. Continuing anyway.")
     return False
 
-def epsilon_heuristic_agent(obs, episode_num):
+def get_q_best_action(task_id):
+    """Return the action_type with the highest Q-value for this task."""
+    q_row = Q_TABLE[task_id]
+    if not q_row:
+        return None
+    return max(q_row, key=q_row.get)
+
+def epsilon_heuristic_agent(obs, episode_num, task_id):
     """
-    Simulates learning by decaying epsilon from 0.4 to 0.05.
-    epsilon = max(0.05, 0.4 * (0.93 ** episode_num))
+    Epsilon-greedy agent with Q-guided exploitation.
     """
     epsilon = max(0.05, 0.4 * (0.93 ** episode_num))
     
@@ -69,8 +83,8 @@ def epsilon_heuristic_agent(obs, episode_num):
     hosts = list(set(hosts))
     
     if random.random() < epsilon:
-        # Exploration
-        atype = random.choice(["block_ip", "flag_user", "isolate_host", "escalate_alert", "ignore"])
+        # Exploration — uniform random action
+        atype = random.choice(ALL_ACTIONS)
         target = "unknown"
         if atype == "block_ip" and ips: target = random.choice(ips)
         elif atype == "flag_user" and users: target = random.choice(users)
@@ -78,7 +92,7 @@ def epsilon_heuristic_agent(obs, episode_num):
         elif atype == "escalate_alert" and ips: target = random.choice(ips)
         return {"action_type": atype, "target": target}
     else:
-        # Exploitation - Deterministic heuristic logic
+        # Exploitation — Q-guided heuristic
         alerts = obs.get("active_alerts", [])
         events = obs.get("recent_events", [])
         state = obs.get("system_state", {})
@@ -86,69 +100,67 @@ def epsilon_heuristic_agent(obs, episode_num):
         blocked = state.get("blocked_ips", [])
         flagged = state.get("flagged_users", [])
         
-        # 1. Critical alert -> isolate_host on affected_host
+        candidates = []
+        
         for a in alerts:
             if a.get("threat_level", "").lower() == "critical":
                 target = hosts[0] if hosts else "WORKSTATION-01"
                 for h in hosts:
                     if h in a.get("description", "") or h in a.get("title", ""): target = h
                 if target not in isolated:
-                    return {"action_type": "isolate_host", "target": target}
+                    candidates.append({"action_type": "isolate_host", "target": target})
                 
-        # 2. High severity alert -> block_ip on source_ip
         for a in alerts:
             if a.get("threat_level", "").lower() == "high":
-                target = ips[-1] if ips else "1.1.1.1" # backup guess
+                target = ips[-1] if ips else "1.1.1.1"
                 for i in ips:
                     if i in a.get("description", "") or i in a.get("title", ""): target = i
                 if target not in blocked:
-                    return {"action_type": "block_ip", "target": target}
+                    candidates.append({"action_type": "block_ip", "target": target})
                 
-        # 3. geo_anomaly or mfa_bypassed event -> flag_user on target_user
         for e in events:
             det = e.get("details", {})
             if det.get("mfa_bypassed") or det.get("risk_signal") == "impossible_travel" or "geo_anomaly" in str(det):
                 target = e.get("user_id", users[0] if users else "admin")
                 if target not in flagged:
-                    return {"action_type": "flag_user", "target": target}
+                    candidates.append({"action_type": "flag_user", "target": target})
                 
-        # 4. network_anomaly_score > 0.8 -> escalate_alert
         for e in events:
             det = e.get("details", {})
             if float(det.get("network_anomaly_score", 0)) > 0.8:
                 target = e.get("source_ip", ips[0] if ips else "network")
-                return {"action_type": "escalate_alert", "target": target}
+                candidates.append({"action_type": "escalate_alert", "target": target})
+        
+        if candidates:
+            q_row = Q_TABLE[task_id]
+            best = max(candidates, key=lambda c: q_row.get(c["action_type"], 0.0))
+            return best
                 
-        # 5. default
         return {"action_type": "ignore", "target": "system"}
 
 # %%CELL 4%%
 # Episode Runner & Evaluation Logic 
-def compute_red_score(blue_score, episode_num, prev_blue_scores):
+
+def update_q_table(task_id, action_counts, reward):
     """
-    Computes adversarial evasion success inversely responding 
-    to rolling defender performance.
+    Update Q-table after each episode.
     """
-    if len(prev_blue_scores) == 0:
-        avg = blue_score
-    else:
-        recent = prev_blue_scores[-5:]
-        avg = sum(recent) / len(recent)
-        
-    if avg > 0.75:
-        # red escalates -> successful evasion
-        red_score = 0.30 + random.uniform(0, 0.15)
-    elif avg < 0.40:
-        # red mutations are overkill, blue is already failing
-        red_score = random.uniform(0, 0.08)
-    else:
-        red_score = max(0.0, 0.35 - (blue_score * 0.30) + random.uniform(-0.05, 0.05))
-        
-    # small gaussian noise
-    red_score += np.random.normal(0, 0.02)
-    return max(0.0, min(1.0, red_score))
+    if not action_counts:
+        return
+    
+    total = sum(action_counts.values())
+    for action_type, count in action_counts.items():
+        weight = count / total
+        current_q = Q_TABLE[task_id][action_type]
+        effective_alpha = Q_ALPHA * weight
+        Q_TABLE[task_id][action_type] = current_q + effective_alpha * (reward - current_q)
+    
+    dominant_action = action_counts.most_common(1)[0][0]
+    current_q = Q_TABLE[task_id][dominant_action]
+    Q_TABLE[task_id][dominant_action] = current_q + Q_ALPHA * (reward - current_q)
 
 def run_episode(base_url, task_id, episode_num):
+    action_counts = Counter()
     try:
         r = requests.post(
             f"{base_url}/reset",
@@ -159,7 +171,7 @@ def run_episode(base_url, task_id, episode_num):
             timeout=15
         )
         if r.status_code != 200:
-            return 0.0, 0
+            return 0.0, 0.0, 0, action_counts
             
         data = r.json()
         obs = data.get("observation", data)
@@ -172,7 +184,8 @@ def run_episode(base_url, task_id, episode_num):
         steps = 0
         
         while not done and steps < max_steps:
-            action = epsilon_heuristic_agent(obs, episode_num)
+            action = epsilon_heuristic_agent(obs, episode_num, task_id)
+            action_counts[action["action_type"]] += 1
             sr = requests.post(
                 f"{base_url}/step",
                 json={"action": {"action_type": action["action_type"], "target": action["target"]}},
@@ -187,11 +200,17 @@ def run_episode(base_url, task_id, episode_num):
             steps += 1
             
         gr = requests.get(f"{base_url}/score", timeout=10)
-        final_score = gr.json().get("score", 0.0) if gr.status_code == 200 else 0.0
+        if gr.status_code == 200:
+            score_data = gr.json()
+            blue_score = float(score_data.get("score", 0.0))
+            red_score = float(score_data.get("red_score", 0.0))
+        else:
+            blue_score = 0.0
+            red_score = 0.0
         
-        return float(final_score), steps
+        return blue_score, red_score, steps, action_counts
     except Exception as e:
-        return 0.0, 0
+        return 0.0, 0.0, 0, action_counts
 
 # %%CELL 5%%
 # Main Training Loop
@@ -205,16 +224,18 @@ for task in TASKS:
     
     for ep in tqdm(range(1, EPISODES + 1)):
         eps = max(0.05, 0.4 * (0.93 ** ep))
-        blue_score, steps = run_episode(BASE_URL, task, ep)
+        blue_score, red_score, steps, action_counts = run_episode(BASE_URL, task, ep)
         
-        red_score = compute_red_score(blue_score, ep, blue_scores)
+        update_q_table(task, action_counts, blue_score)
         
         blue_scores.append(blue_score)
         red_scores.append(red_score)
         
         if ep % 10 == 0:
             avg = sum(blue_scores[-10:]) / 10
-            print(f"  Ep {ep}: blue={blue_score:.3f} | red={red_score:.3f} | avg_last_10={avg:.3f} | eps={eps:.3f}")
+            q_best = get_q_best_action(task)
+            q_val = Q_TABLE[task].get(q_best, 0.0) if q_best else 0.0
+            print(f"  Ep {ep}: blue={blue_score:.3f} | red={red_score:.3f} | avg_last_10={avg:.3f} | eps={eps:.3f} | Q_best={q_best}({q_val:.3f})")
             
     all_results[task] = {
         "blue_scores": blue_scores,
@@ -230,18 +251,21 @@ out_obj = {
         "base_url": BASE_URL
     },
     "results": all_results,
+    "q_table": {task: dict(Q_TABLE[task]) for task in TASKS},
     "summary": {}
 }
 
 for t in TASKS:
     bs = all_results[t]["blue_scores"]
+    rs = all_results[t]["red_scores"]
     b_first = sum(bs[:10])/10 if len(bs)>=10 else sum(bs)/len(bs)
     b_last = sum(bs[-10:])/10 if len(bs)>=10 else sum(bs)/len(bs)
     out_obj["summary"][t] = {
         "blue_first10_avg": round(b_first, 3),
         "blue_last10_avg": round(b_last, 3),
         "blue_improvement": round(b_last - b_first, 3),
-        "red_peak": round(max(all_results[t]["red_scores"]), 3)
+        "red_peak": round(max(rs) if rs else 0.0, 3),
+        "q_best_action": get_q_best_action(t),
     }
     
 with open("outputs/evals/scores.json", "w") as f:
@@ -329,12 +353,21 @@ plt.savefig("outputs/evals/red_vs_blue_curve.png", dpi=150, bbox_inches='tight')
 print("\\n================================================")
 print("SOC SIMULATOR — TRAINING RESULTS SUMMARY")
 print("================================================")
-print(f"{'Task':<25} {'First 10':<10} {'Last 10':<10} {'Improvement'}")
+print(f"{'Task':<25} {'First 10':<10} {'Last 10':<10} {'Improvement':<12} {'Q-Best Action'}")
 for t in TASKS:
     summ = out_obj["summary"][t]
     imp = summ['blue_improvement']
     sign = "+" if imp >= 0 else ""
-    print(f"{t:<25} {summ['blue_first10_avg']:<10.3f} {summ['blue_last10_avg']:<10.3f} {sign}{imp:.3f}")
+    q_best = summ.get('q_best_action', 'N/A')
+    print(f"{t:<25} {summ['blue_first10_avg']:<10.3f} {summ['blue_last10_avg']:<10.3f} {sign}{imp:.3f}       {q_best}")
+print("------------------------------------------------")
+print("Q-Table (learned action preferences):")
+for t in TASKS:
+    q_row = Q_TABLE[t]
+    if q_row:
+        sorted_q = sorted(q_row.items(), key=lambda x: x[1], reverse=True)
+        q_str = "  ".join(f"{a}={v:.3f}" for a, v in sorted_q)
+        print(f"  {t}: {q_str}")
 print("------------------------------------------------")
 print("Graph saved: outputs/evals/red_vs_blue_curve.png")
 print("Data saved:  outputs/evals/scores.json")
