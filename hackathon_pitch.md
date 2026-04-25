@@ -11,7 +11,7 @@
 
 In cybersecurity, static training environments inherently fail. If you train an LLM on static SIEM logs, the model doesn't learn how to hunt—it just memorizes IP addresses. We built SOC Simulator to solve this by directly targeting **Theme #4: Self-Improvement** and the **Patronus AI Bonus for Schema Drift**. 
 
-Our environment forces an LLM to play the role of a Tier-1 SOC Analyst, triaging live logs, blocking IPs, and isolating hosts via a dense reinforcement learning reward gradient."
+Our environment forces an LLM to play the role of a Tier-1 SOC Analyst, triaging live logs, blocking IPs, and isolating hosts via a dense reinforcement learning reward gradient. We skip expensive Supervised Fine-Tuning (SFT) entirely—instead, we take a base instruct model, apply light formatting prompts, and plug it directly into our OpenEnv framework to learn strategy purely through RL."
 
 ---
 
@@ -20,7 +20,7 @@ Our environment forces an LLM to play the role of a Tier-1 SOC Analyst, triaging
 
 "What makes this environment deeply innovative isn't just the interactive Fastapi server—it's the adversarial ecosystem.
 
-First, the environment scrapes live botnet databases like URLhaus and Feodo Tracker to seed scenarios with real-world infrastructure. 
+First, the environment scrapes live botnet databases like URLhaus and Feodo Tracker to seed scenarios with real-world infrastructure. To prevent reward hacking, we use **strict programmatic verification** instead of an LLM-as-a-judge. The environment maintains a hidden ground-truth state, ensuring the model cannot manipulate a judge.
 
 Second, we implemented an autonomous **Red Agent**. When the Blue Agent (the LLM) gets too good and suppresses an attack, the Red Agent intercepts the next episode and dynamically mutates the adversary's IPs, credentials, and MITRE techniques. It creates a self-driven, auto-escalating curriculum.
 
@@ -42,7 +42,7 @@ Notice the dotted green line—this is our Red Agent triggering an autonomous di
 ## ⏱️ 2:30 - 3:00 | The Pipeline (Reward and Training Script Setup - 10%)
 **[Visual: Show `colab_unsloth_ppo.py` and the LIVE Hugging Face Link on screen]**
 
-"To make this highly accessible to the Llama ecosystem, we've provided a fully functioning Unsloth and TRL Proximal Policy Optimization (PPO) training script ready to run in Google Colab. 
+"To make this highly accessible to the Llama ecosystem, we've provided a fully functioning Unsloth and TRL **GRPO (Group Relative Policy Optimization)** training script ready to run in Google Colab. We specifically chose GRPO over PPO because it drops the Value Model head, making it much more efficient for verifiable tasks like ours.
 
 The environment is fully OpenEnv-compliant, completely containerized in Docker, and is hosted live right now on Hugging Face Spaces. 
 

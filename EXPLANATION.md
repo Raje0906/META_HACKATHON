@@ -23,7 +23,7 @@ We built a **Simulator** for a SOC. The goal is to train an **AI Agent** to act 
 
 ## 🤖 2. How the AI Agent Works (Reinforcement Learning)
 
-This project is built using the **OpenEnv** framework, which is designed for Reinforcement Learning (RL). In RL, you train an AI by putting it in an environment, letting it take actions, and giving it "rewards" (points) or "penalties" (negative points) based on whether it did a good job.
+This project is built using the **OpenEnv** framework, which is designed for Reinforcement Learning (RL). Because we do not have a massive dataset of human SOC analysts to train on, we skip Supervised Fine-Tuning (SFT) and rely entirely on RL. We start with a smart base model (like `Llama-3-8B-Instruct`), give it a prompt explaining the log format, and then use RL to teach it how to act. In RL, you train an AI by putting it in an environment, letting it take actions, and giving it "rewards" (points) or "penalties" (negative points) based on whether it did a good job.
 
 Think of it like training a dog:
 1. **Observation:** The AI "looks" at the current state of the network (the logs, the alerts, the risk score).
@@ -81,6 +81,8 @@ We created three distinct "levels" for the AI to beat. Each task represents a re
 ## ⚖️ 5. The Graders (`graders/`)
 
 At the end of each task, the "Grader" looks at every action the AI took and assigns a final score between **0.0 (Terrible)** and **1.0 (Perfect)**. This score is exactly what researchers will use to determine if a new LLM (like Llama 3 or GPT-4) is getting smarter at cybersecurity.
+
+*Note on verification*: We intentionally chose strict **programmatic, rule-based verification** rather than using an "LLM-as-a-judge". While LLM judges can provide intermediate reasoning checks, they are extremely vulnerable to "reward hacking" (where the training model manipulates the judge). Our programmatic environment calculates ground-truth success definitively, making it much more robust for RL.
 
 ---
 

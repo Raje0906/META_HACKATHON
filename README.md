@@ -102,10 +102,10 @@ python inference.py
 ```
 
 ### 4. TRL & Unsloth Colab Training
-As per Hackathon minimum requirements, a Colab-ready `trl` PPO training loop is included. It imports Unsloth, generates actions, and steps through the OpenEnv APIs:
+As per Hackathon minimum requirements, a Colab-ready `trl` GRPO training loop is included. We specifically chose **GRPO (Group Relative Policy Optimization)** as it drops the Value Model head, making it highly efficient for verifiable tasks. It imports Unsloth, generates actions, and steps through the OpenEnv APIs:
 ```bash
 # View the script logic tailored for Jupyter Notebook runtimes:
-cat training/colab_unsloth_ppo.py
+cat training/colab_unsloth_grpo.py
 ```
 
 ---
