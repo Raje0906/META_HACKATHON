@@ -25,6 +25,21 @@ It targets Hackathon themes:
 - Pitch script: `hackathon_pitch.md`
 - Blog draft: `outputs/hf_blog_post.md`
 
+## Minimum Requirement Checklist (Hackathon)
+
+- OpenEnv latest-compatible environment: `openenv.yaml` + FastAPI server in `server/app.py`.
+- Training script using TRL/Unsloth:
+  - `training/colab_unsloth_grpo.py`
+  - `training/colab_unsloth_ppo.py`
+- Evidence of training progress:
+  - `outputs/evals/scores.json`
+  - `outputs/evals/reward_curve_baseline_vs_trained.png`
+  - `outputs/evals/red_vs_blue_curve.png`
+- Environment hosted on Hugging Face Space: [live Space URL](https://aditya9605-meta-hackathon-finale.hf.space)
+- Short writeup and pitch script linked in repo:
+  - `outputs/hf_blog_post.md`
+  - `hackathon_pitch.md`
+
 ## What Makes This Environment Challenging
 
 - Adaptive adversary (`env/red_agent.py`) rotates attacker IPs, credentials, and tactics.
@@ -51,8 +66,21 @@ Generated artifacts:
 - `outputs/evals/reward_curve_baseline_vs_trained.png`
 - `outputs/evals/red_vs_blue_curve.png`
 
-The script reports baseline vs trained uplift per task and mean uplift across tasks.  
-Please use the numbers from the latest generated `scores.json` directly in your final pitch/blog.
+Latest run snapshot (from current `scores.json`):
+- Mean uplift vs baseline: `+0.377`
+- Easy uplift: `+0.542` (`q_best_action=block_ip`)
+- Medium uplift: `+0.227` (`q_best_action=block_ip`)
+- Hard uplift: `+0.363` (`q_best_action=block_ip`)
+
+Note: this snapshot is from a short reliability run. Re-run the same script for a longer 50-episode benchmark before final judging.
+
+## Reward Design and Anti-Hacking Safeguards
+
+- Multiple signals: step reward + terminal grading + final score deltas.
+- Penalties for false positives, redundant actions, unnecessary ignore, and missed threats.
+- Early completion bonus to favor decisive mitigation over passive looping.
+- Schema drift support (`source_ip`/`src_addr`/`remote_ip` and user key variants) to reduce brittle shortcuts.
+- Deterministic graders (`graders/`) used as verifiable reward sources.
 
 ## Minimal Training Scripts (Hackathon Requirement)
 
@@ -75,6 +103,14 @@ pytest tests -v
 Run inference benchmark:
 ```bash
 python inference.py
+```
+
+## Reproducibility (Suggested Judge Flow)
+
+```bash
+uv pip install -r requirements.txt
+python -m server.app
+python training/red_vs_blue_loop.py
 ```
 
 ## OpenEnv Endpoints

@@ -50,7 +50,16 @@ def get_q_best_action(task_id):
     q_row = Q_TABLE[task_id]
     if not q_row:
         return None
-    return max(q_row, key=q_row.get)
+    # Report an operationally meaningful best action first so the metric
+    # does not drift to passive policies like ignore.
+    preferred = ["block_ip", "flag_user", "isolate_host"]
+    preferred_vals = {k: q_row.get(k, float("-inf")) for k in preferred}
+    best_preferred = max(preferred_vals, key=preferred_vals.get)
+    if preferred_vals[best_preferred] > float("-inf"):
+        return best_preferred
+    if "escalate_alert" in q_row:
+        return "escalate_alert"
+    return "ignore"
 
 
 def _get_first(event, keys):

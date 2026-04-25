@@ -21,4 +21,12 @@ We evaluate using a baseline-vs-trained protocol (`training/red_vs_blue_loop.py`
 
 Our claim is intentionally strict: we only report values directly present in `outputs/evals/scores.json` from the latest run. This avoids overfitting the narrative to one lucky episode and makes the evidence reproducible for judges.
 
+From the latest run:
+- mean uplift vs baseline: **+0.377**
+- easy task uplift: **+0.542**
+- medium task uplift: **+0.227**
+- hard task uplift: **+0.363**
+
+We also hardened the policy against reward hacking by combining step-level rewards, terminal grading, and action-level penalties (false positives, redundant actions, unnecessary ignore, and missed-threat penalties), plus schema-drift robustness checks.
+
 Check out the environment on our Hugging Face Space to try it yourself!

@@ -52,11 +52,11 @@ Right now I'm loading a phishing scenario — user gets a credential-harvesting 
 MFA gets bypassed, attacker logs in. Classic account takeover."
 
 **Step 2 — Block the attacker**
-- Action: `block_ip` / Target: `27.133.154.218` / Reason: `Malicious login from Russia`
+- Action: `block_ip` / Target: `attacker IP shown in alert` / Reason: `Malicious login from foreign source`
 - Click **Execute Action**
 
-"I can see the event stream. The attacker IP is `27.133.154.218` — it sent the phishing email
-and then used the stolen credentials 14 minutes later. First thing I do: block it."
+"I can see the event stream. The attacker IP in this episode appears in both the phishing and login chain.
+First thing I do: block it."
 
 **Step 3 — Flag the compromised user**
 - Action: `flag_user` / Target: `alice.chen` / Reason: `Compromised via phishing`
@@ -77,7 +77,7 @@ The agent either blocked the right IP or it didn't. No hallucination. No false c
 
 *[Open: outputs/evals/red_vs_blue_curve.png — or show the terminal output]*
 
-"We ran 50-episode baseline-vs-trained evaluations and publish raw metrics in `outputs/evals/scores.json`.
+"We ran baseline-vs-trained evaluations and publish raw metrics in `outputs/evals/scores.json`.
 
 The important part is not one lucky score.
 It is that trained policy outperforms the random baseline across tasks under adversarial mutation.
@@ -130,7 +130,7 @@ That's SOC Simulator."
 |------|-----------|
 | Browser | `https://aditya9605-meta-hackathon-finale.hf.space/web` |
 | Initialize | EASY — Phishing Campaign → Initialize Environment |
-| Action 1 | `block_ip` → `27.133.154.218` → Execute |
+| Action 1 | `block_ip` → attacker IP shown in current alert → Execute |
 | Action 2 | `flag_user` → `alice.chen` → Execute |
 | Evaluate | Click Evaluate Episode → point at score circle |
 | Graph | Open `outputs/evals/red_vs_blue_curve.png` |
@@ -145,5 +145,5 @@ That's SOC Simulator."
 - **$30.9B** — AI cybersecurity market size
 - **24%** — annual market growth
 - **332%** — projected SOC role growth by 2033
-- **Baseline vs trained uplift** — use the latest value from `outputs/evals/scores.json`
-- **50 episodes** — automated evaluation runs
+- **Mean uplift vs baseline** — latest from `outputs/evals/scores.json` (`+0.377` in current run)
+- **Per-task uplift** — easy `+0.542`, medium `+0.227`, hard `+0.363`
