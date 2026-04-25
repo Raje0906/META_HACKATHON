@@ -45,8 +45,14 @@ class EasyGrader:
         score = 0.0
         actions = state.agent_actions
 
-        ip_blocked = any(d.startswith("block:") for d in state.correct_detections)
-        user_flagged = any(d.startswith("flag:") for d in state.correct_detections)
+        ip_blocked = any(
+            a.get("action_type") == ActionType.BLOCK_IP.value and a.get("target") == THREAT_IP
+            for a in actions
+        ) or any(d == f"block:{THREAT_IP}" for d in state.correct_detections)
+        user_flagged = any(
+            a.get("action_type") == ActionType.FLAG_USER.value and a.get("target") == THREAT_USER
+            for a in actions
+        ) or any(d == f"flag:{THREAT_USER}" for d in state.correct_detections)
         escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions)
 
         # ── Primary objectives ────────────────────────────────────────────
@@ -70,21 +76,14 @@ class EasyGrader:
 
     def _check_early_detection(self, state: SOCState, threshold_steps: int) -> bool:
         """Return True if the primary threat was acted upon within threshold_steps."""
-        # A simple proxy: if the agent made a correct detection within threshold
-        ip_blocked_early = False
-        user_flagged_early = False
-        
         for i, action in enumerate(state.agent_actions):
             if i >= threshold_steps:
                 break
-            # If the specific action resulted in a valid correct detection, SOCEnvironment handles that logic
-            # but we can guess loosely for the grader:
-            if action["action_type"] == ActionType.BLOCK_IP.value and any(d.endswith(action["target"] or "") for d in state.correct_detections):
-                ip_blocked_early = True
-            if action["action_type"] == ActionType.FLAG_USER.value and any(d.endswith(action["target"] or "") for d in state.correct_detections):
-                user_flagged_early = True
-
-        return ip_blocked_early or user_flagged_early
+            if action.get("action_type") == ActionType.BLOCK_IP.value and action.get("target") == THREAT_IP:
+                return True
+            if action.get("action_type") == ActionType.FLAG_USER.value and action.get("target") == THREAT_USER:
+                return True
+        return False
 
     def explain(self, state: SOCState) -> dict:
         """Return a detailed breakdown of the score components."""
@@ -93,8 +92,8 @@ class EasyGrader:
         return {
             "task_id": self.TASK_ID,
             "total_score": self.grade(state),
-            "ip_blocked": any(d.startswith("block:") for d in state.correct_detections),
-            "user_flagged": any(d.startswith("flag:") for d in state.correct_detections),
+            "ip_blocked": any(a.get("action_type") == ActionType.BLOCK_IP.value and a.get("target") == THREAT_IP for a in actions),
+            "user_flagged": any(a.get("action_type") == ActionType.FLAG_USER.value and a.get("target") == THREAT_USER for a in actions),
             "escalated": any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions),
             "false_positives": state.false_positives,
             "steps_taken": state.step_count,

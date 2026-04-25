@@ -38,8 +38,10 @@ class HardGrader:
         score = 0.0
 
         escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions)
-        
-        user_flags = [d for d in state.correct_detections if d.startswith("flag:")]
+        user_flags = [
+            a for a in actions
+            if a.get("action_type") == ActionType.FLAG_USER.value and a.get("target") == COMPROMISED_USER
+        ]
 
         # ── Stage-by-stage scoring ───────────────────────────────────────
         if "reconnaissance" in state.attack_stages_detected:
@@ -71,7 +73,10 @@ class HardGrader:
         return round(max(0.0, min(1.0, score)), 4)
 
     def _all_stages_covered(self, state: SOCState, escalated: bool) -> bool:
-        user_flags = [d for d in state.correct_detections if d.startswith("flag:")]
+        user_flags = [
+            a for a in state.agent_actions
+            if a.get("action_type") == ActionType.FLAG_USER.value and a.get("target") == COMPROMISED_USER
+        ]
         return (
             "reconnaissance" in state.attack_stages_detected
             and "initial_access" in state.attack_stages_detected
@@ -104,7 +109,10 @@ class HardGrader:
     def explain(self, state: SOCState) -> dict:
         actions = state.agent_actions
         escalated = any(a["action_type"] == ActionType.ESCALATE_ALERT.value for a in actions)
-        user_flags = [d for d in state.correct_detections if d.startswith("flag:")]
+        user_flags = [
+            a for a in actions
+            if a.get("action_type") == ActionType.FLAG_USER.value and a.get("target") == COMPROMISED_USER
+        ]
 
         return {
             "task_id": self.TASK_ID,

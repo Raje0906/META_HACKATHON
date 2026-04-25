@@ -48,13 +48,13 @@ class RewardConfig:
 
     # Negative rewards
     FALSE_POSITIVE_PENALTY = -0.15   # Blocking wrong IP / flagging wrong user
-    UNNECESSARY_IGNORE = -0.20       # Ignoring a confirmed threat
+    UNNECESSARY_IGNORE = -0.30       # Ignoring a confirmed threat
     REDUNDANT_ACTION = -0.05         # Same action taken twice
     TIMESTEP_COST = -0.02            # Small cost per step (encourages speed)
 
     # Terminal
     TASK_COMPLETION_BONUS = 0.25
-    MISSED_THREAT_PENALTY = -0.30
+    MISSED_THREAT_PENALTY = -0.40
 
 
 TASK_REGISTRY = {
@@ -287,6 +287,16 @@ class SOCEnvironment:
         # Track hard task stage progression
         if self._current_task_id == "hard_apt_multistage":
             self._update_hard_task_stage(action, threats)
+
+        # Early success termination when all ground-truth threats are handled.
+        # This prevents exploitative "ignore until max_steps" policies from
+        # receiving comparable returns to decisive mitigation.
+        unresolved = self._get_unresolved_threats()
+        if not unresolved and not self._state.task_completed:
+            reward += RewardConfig.TASK_COMPLETION_BONUS
+            info["task_completed"] = True
+            info["completion_bonus"] = RewardConfig.TASK_COMPLETION_BONUS
+            self._state.task_completed = True
 
         return reward, info
 

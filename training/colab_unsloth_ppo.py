@@ -6,6 +6,7 @@ Matches judging criteria: "Show a minimal training script for your environment u
 """
 
 import os
+import json
 import torch
 import requests
 from transformers import AutoTokenizer
@@ -14,6 +15,7 @@ from trl import AutoModelForCausalLMWithValueHead, PPOConfig, PPOTrainer
 # from unsloth import FastLanguageModel
 
 API_URL = "http://localhost:8000"
+VALID_ACTIONS = {"block_ip", "flag_user", "isolate_host", "escalate_alert", "ignore"}
 
 def init_environment(task="easy_phishing_login"):
     resp = requests.post(f"{API_URL}/reset", json={
@@ -26,6 +28,35 @@ def step_environment(action_dict):
     resp = requests.post(f"{API_URL}/step", json={"action": action_dict})
     d = resp.json()
     return d.get("observation", {}), d.get("reward", 0.0), d.get("done", True)
+
+
+def parse_model_action(text: str):
+    """
+    Parse a JSON action from model output with safe fallback.
+    """
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return {"action_type": "ignore", "target": None, "reason": "parse_fallback"}
+
+    try:
+        action = json.loads(text[start:end + 1])
+    except Exception:
+        return {"action_type": "ignore", "target": None, "reason": "json_decode_error"}
+
+    action_type = action.get("action_type", "ignore")
+    if action_type not in VALID_ACTIONS:
+        action_type = "ignore"
+
+    target = action.get("target")
+    if action_type in {"ignore", "escalate_alert"}:
+        target = None
+
+    return {
+        "action_type": action_type,
+        "target": target,
+        "reason": action.get("reason", "generated_by_model"),
+    }
 
 def main():
     print("Initialize Unsloth / TRL PPO Pipeline...")
@@ -63,17 +94,11 @@ def main():
         action_text = tokenizer.decode(response_tensor.squeeze(), skip_special_tokens=True)
         
         # 3. Environment Step (Parse action_text -> JSON -> Environment)
-        # For demo purposes, we manually craft the parsed action:
-        simulated_action = {
-            "action_type": "block_ip", 
-            "target": "185.220.101.47", 
-            "reason": "RL generation"
-        }
-        
-        next_obs, reward, done = step_environment(simulated_action)
+        parsed_action = parse_model_action(action_text)
+        next_obs, reward, done = step_environment(parsed_action)
         reward_tensor = torch.tensor([reward], device=model.pretrained_model.device, dtype=torch.float)
         
-        print(f"Env Reward Received: {reward}")
+        print(f"Action: {parsed_action} | Env Reward: {reward}")
 
         # 4. PPO Update Step
         print("Running TRL PPO Step Optimizer...")

@@ -168,7 +168,14 @@ class MediumTask:
     MAX_STEPS = 8
 
     def __init__(self, **kwargs):
-        pass
+        self.primary_ip = kwargs.get("attacker_ip") or "45.142.212.100"
+        rotated_ips = kwargs.get("attacker_ips") or []
+        if rotated_ips:
+            self.secondary_ip = rotated_ips[0]
+        else:
+            self.secondary_ip = "91.108.56.22"
+        self.target_user = kwargs.get("target_user") or THREAT_USER
+        self.target_host = THREAT_HOST
     DESCRIPTION = (
         "23 failed SSH logins against the finance server from Chinese IPs, "
         "followed by a successful login with post-auth recon commands.  "
@@ -176,6 +183,38 @@ class MediumTask:
     )
 
     def get_initial_observation(self, episode_id: str) -> SOCObservation:
+        events = [e.model_copy(deep=True) for e in ALL_EVENTS]
+        alerts = [BRUTE_FORCE_ALERT.model_copy(deep=True), GEO_ANOMALY_ALERT.model_copy(deep=True)]
+
+        for ev in events:
+            if ev.source_ip == "45.142.212.100":
+                ev.source_ip = self.primary_ip
+            elif ev.source_ip == "91.108.56.22":
+                ev.source_ip = self.secondary_ip
+            if ev.user_id == THREAT_USER:
+                ev.user_id = self.target_user
+            if ev.raw_log:
+                ev.raw_log = (
+                    ev.raw_log
+                    .replace("45.142.212.100", self.primary_ip)
+                    .replace("91.108.56.22", self.secondary_ip)
+                    .replace(THREAT_USER, self.target_user)
+                )
+
+        for alert in alerts:
+            alert.title = (
+                alert.title
+                .replace("45.142.212.100", self.primary_ip)
+                .replace("91.108.56.22", self.secondary_ip)
+                .replace(THREAT_USER, self.target_user)
+            )
+            alert.description = (
+                alert.description
+                .replace("45.142.212.100", self.primary_ip)
+                .replace("91.108.56.22", self.secondary_ip)
+                .replace(THREAT_USER, self.target_user)
+            )
+
         return SOCObservation(
             done=False,
             reward=0.0,
@@ -183,8 +222,8 @@ class MediumTask:
             task_id=self.TASK_ID,
             step_number=0,
             timestamp=datetime(2024, 7, 22, 2, 9, 0),
-            recent_events=ALL_EVENTS[-15:],   # Show last 15 events (realistic SIEM window)
-            active_alerts=[BRUTE_FORCE_ALERT, GEO_ANOMALY_ALERT],
+            recent_events=events[-15:],   # Show last 15 events (realistic SIEM window)
+            active_alerts=alerts,
             system_state=SystemState(
                 active_connections=312,
                 blocked_ips=[],
@@ -201,8 +240,8 @@ class MediumTask:
 
     def get_threat_targets(self) -> dict:
         return {
-            "ips": THREAT_IPS,
-            "user": THREAT_USER,
-            "host": THREAT_HOST,
+            "ips": {self.primary_ip, self.secondary_ip},
+            "user": self.target_user,
+            "host": self.target_host,
             "alert_ids": {"ALT-101", "ALT-102"},
         }

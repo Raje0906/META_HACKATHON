@@ -351,7 +351,9 @@ class HardTask:
     MAX_STEPS = 15
     
     def __init__(self, **kwargs):
-        pass
+        self.c2_ip = kwargs.get("attacker_ip") or C2_IP
+        self.compromised_user = kwargs.get("target_user") or COMPROMISED_USER
+        self.compromised_hosts = set(COMPROMISED_HOSTS)
 
     DESCRIPTION = (
         "A multi-stage APT attack: port scan → web shell → credential dump "
@@ -361,6 +363,9 @@ class HardTask:
 
     def get_initial_observation(self, episode_id: str) -> SOCObservation:
         """Return initial state — only stage 1 events visible at start."""
+        stage_events = [e.model_copy(deep=True) for e in [RECON_PORT_SCAN, RECON_DNS_ENUM]]
+        stage_alert = RECON_ALERT.model_copy(deep=True)
+        self._rewrite_entities(stage_events, [stage_alert])
         return SOCObservation(
             done=False,
             reward=0.0,
@@ -368,8 +373,8 @@ class HardTask:
             task_id=self.TASK_ID,
             step_number=0,
             timestamp=datetime(2024, 8, 5, 3, 16, 0),
-            recent_events=[RECON_PORT_SCAN, RECON_DNS_ENUM],
-            active_alerts=[RECON_ALERT],
+            recent_events=stage_events,
+            active_alerts=[stage_alert],
             system_state=SystemState(
                 active_connections=892,
                 blocked_ips=[],
@@ -390,7 +395,9 @@ class HardTask:
             "lateral_movement": [CREDENTIAL_DUMP, LATERAL_MOVE_RDP, DB_QUERY_DUMP],
             "exfiltration": [DATA_EXFIL_EVENT, C2_BEACON],
         }
-        return stage_map.get(stage, [])
+        events = [e.model_copy(deep=True) for e in stage_map.get(stage, [])]
+        self._rewrite_entities(events, [])
+        return events
 
     def get_alerts_for_stage(self, stage: str):
         stage_map = {
@@ -399,12 +406,35 @@ class HardTask:
             "lateral_movement": [LATERAL_MOVEMENT_ALERT],
             "exfiltration": [EXFIL_ALERT],
         }
-        return stage_map.get(stage, [])
+        alerts = [a.model_copy(deep=True) for a in stage_map.get(stage, [])]
+        self._rewrite_entities([], alerts)
+        return alerts
 
     def get_threat_targets(self) -> dict:
         return {
-            "c2_ip": C2_IP,
-            "compromised_hosts": COMPROMISED_HOSTS,
-            "compromised_user": COMPROMISED_USER,
+            "c2_ip": self.c2_ip,
+            "compromised_hosts": self.compromised_hosts,
+            "compromised_user": self.compromised_user,
             "attack_stages": list(ATTACK_STAGES.keys()),
         }
+
+    def _rewrite_entities(self, events: List[SecurityEvent], alerts: List[Alert]) -> None:
+        for ev in events:
+            if ev.source_ip == C2_IP:
+                ev.source_ip = self.c2_ip
+            if ev.dest_ip == C2_IP:
+                ev.dest_ip = self.c2_ip
+            if ev.user_id == COMPROMISED_USER:
+                ev.user_id = self.compromised_user
+            if ev.raw_log:
+                ev.raw_log = ev.raw_log.replace(C2_IP, self.c2_ip).replace(COMPROMISED_USER, self.compromised_user)
+            if isinstance(ev.details, dict):
+                if ev.details.get("c2_ip") == C2_IP:
+                    ev.details["c2_ip"] = self.c2_ip
+                creds = ev.details.get("credentials_dumped")
+                if isinstance(creds, list):
+                    ev.details["credentials_dumped"] = [c.replace(COMPROMISED_USER, self.compromised_user) for c in creds]
+
+        for alert in alerts:
+            alert.title = alert.title.replace(C2_IP, self.c2_ip)
+            alert.description = alert.description.replace(C2_IP, self.c2_ip).replace(COMPROMISED_USER, self.compromised_user)

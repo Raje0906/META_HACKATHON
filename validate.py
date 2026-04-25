@@ -125,7 +125,7 @@ def check_openenv_yaml() -> bool:
     ok &= check("spec_version == 1", cfg.get("spec_version") == 1)
     ok &= check("type == 'space'", cfg.get("type") == "space")
     ok &= check("runtime == 'fastapi'", cfg.get("runtime") == "fastapi")
-    ok &= check("port == 8000", cfg.get("port") == 8000)
+    ok &= check("port is valid for Space runtime", cfg.get("port") in (7860, 8000), str(cfg.get("port")))
 
     # Check tasks section
     tasks = cfg.get("tasks", [])

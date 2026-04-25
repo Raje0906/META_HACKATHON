@@ -17,8 +17,8 @@ This creates a self-driven, auto-escalating curriculum where the LLM is constant
 ![Red vs Blue Reward Curve](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
 
 ### Proof of Learning
-As demonstrated in the evaluation curve above, the Red Agent's periodic escalations systematically push the Blue Agent's rewards down. However, because of our dense reward penalty for false-positives and time-wasting actions, the Blue Agent rapidly generalizes the novel attack vector.
+We evaluate using a baseline-vs-trained protocol (`training/red_vs_blue_loop.py`) and publish both the raw JSON metrics and plots under `outputs/evals/`.
 
-The results are remarkably consistent. In all three task difficulties, from Basic Phishing to Multi-Stage APTs, the agent recovers to a stable success rate of over 0.83. This +0.27 improvement across all scenarios signifies genuine, reusable cybersecurity logic amplification. 
+Our claim is intentionally strict: we only report values directly present in `outputs/evals/scores.json` from the latest run. This avoids overfitting the narrative to one lucky episode and makes the evidence reproducible for judges.
 
 Check out the environment on our Hugging Face Space to try it yourself!

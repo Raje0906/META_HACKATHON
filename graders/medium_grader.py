@@ -35,14 +35,26 @@ class MediumGrader:
         actions = state.agent_actions
         score = 0.0
 
-        ip_blocks = [d for d in state.correct_detections if d.startswith("block:")]
-        user_flagged = any(d.startswith("flag:") for d in state.correct_detections)
-        host_isolated = any(d.startswith("isolate:") for d in state.correct_detections)
+        blocked_targets = {
+            a.get("target")
+            for a in actions
+            if a.get("action_type") == ActionType.BLOCK_IP.value and a.get("target")
+        }
+        primary_blocked = PRIMARY_IP in blocked_targets
+        secondary_blocked = SECONDARY_IP in blocked_targets
+        user_flagged = any(
+            a.get("action_type") == ActionType.FLAG_USER.value and a.get("target") == THREAT_USER
+            for a in actions
+        )
+        host_isolated = any(
+            a.get("action_type") == ActionType.ISOLATE_HOST.value and a.get("target") == THREAT_HOST
+            for a in actions
+        )
 
         # ── Primary objectives ──────────────────────────────────────────
-        if len(ip_blocks) >= 1:
+        if primary_blocked:
             score += 0.30
-        if len(ip_blocks) >= 2:
+        if secondary_blocked:
             score += 0.15
 
         if user_flagged:
@@ -55,7 +67,6 @@ class MediumGrader:
         fp_count = state.false_positives
 
         # Penalise for blocking the red-herring IP more
-        blocked_targets = {a["target"] for a in actions if a["action_type"] == ActionType.BLOCK_IP.value}
         if BENIGN_IP in blocked_targets:
             fp_count += 1  # extra penalty
 
@@ -76,14 +87,24 @@ class MediumGrader:
         return False
 
     def explain(self, state: SOCState) -> dict:
-        ip_blocks = [d for d in state.correct_detections if d.startswith("block:")]
+        blocked_targets = {
+            a.get("target")
+            for a in state.agent_actions
+            if a.get("action_type") == ActionType.BLOCK_IP.value and a.get("target")
+        }
         return {
             "task_id": self.TASK_ID,
             "total_score": self.grade(state),
-            "primary_ip_blocked": len(ip_blocks) >= 1,
-            "secondary_ip_blocked": len(ip_blocks) >= 2,
-            "user_flagged": any(d.startswith("flag:") for d in state.correct_detections),
-            "host_isolated": any(d.startswith("isolate:") for d in state.correct_detections),
+            "primary_ip_blocked": PRIMARY_IP in blocked_targets,
+            "secondary_ip_blocked": SECONDARY_IP in blocked_targets,
+            "user_flagged": any(
+                a.get("action_type") == ActionType.FLAG_USER.value and a.get("target") == THREAT_USER
+                for a in state.agent_actions
+            ),
+            "host_isolated": any(
+                a.get("action_type") == ActionType.ISOLATE_HOST.value and a.get("target") == THREAT_HOST
+                for a in state.agent_actions
+            ),
             "steps_taken": state.step_count,
             "false_positives": state.false_positives,
             "mitre_tactics": ["T1110 (Brute Force)", "T1078 (Valid Accounts)"]
