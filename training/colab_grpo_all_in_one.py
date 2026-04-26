@@ -16,11 +16,14 @@
 # !rm -rf /content/unsloth_compiled_cache
 #
 # --- Secrets (Colab: Secrets sidebar) ---
+#   Experimental tracking (W&B) is ON by default — required for hackathon-quality runs.
 #   Name MUST match what the code looks up (default: WANDB_API_KEY).
 #   Turn ON "Notebook access" for that secret.
 #   This script loads it via: google.colab.userdata.get("WANDB_API_KEY")
-#   If the secret name is wrong or access is off, you get:
-#       UsageError: No API key configured. Use `wandb login` to log in.
+#   If the secret name is wrong or access is off, training aborts unless you set:
+#       SOC_ALLOW_NO_WANDB=1   # smoke tests only — not for submission runs
+#   To fully disable the tracking requirement (not recommended):
+#       SOC_EXPERIMENT_TRACKING=0
 #   SOC_API_URL     — optional override for your HF Space
 #   SOC_MODEL_ID    — optional, default unsloth/Llama-3.2-3B-Instruct
 #   SOC_MAX_SEQ_LENGTH     — default 1024 (fast); raise to 2048 for higher quality
@@ -161,9 +164,46 @@ def resolve_wandb_report_to() -> str:
     print(
         "No W&B API key found. Add a Colab Secret named WANDB_API_KEY "
         "(enable Notebook access), or set os.environ['WANDB_API_KEY']. "
-        "Training will continue with report_to=none."
+        "By default training will NOT continue without tracking — set SOC_ALLOW_NO_WANDB=1 "
+        "only for local smoke tests."
     )
     return "none"
+
+
+def enforce_experiment_tracking(report_to: str) -> None:
+    """
+    Organizers expect experiment tracking for training runs (loss/reward curves, etc.).
+    Default: require Weights & Biases. Opt out only explicitly.
+    """
+    off = os.environ.get("SOC_EXPERIMENT_TRACKING", "1").strip().lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+    allow_no_wandb = os.environ.get("SOC_ALLOW_NO_WANDB", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    if report_to == "wandb":
+        proj = os.environ.get("WANDB_PROJECT", "soc-simulator-grpo")
+        print(f"Experimental tracking: ON (Weights & Biases, project={proj!r}).")
+        return
+    if off:
+        print("SOC_EXPERIMENT_TRACKING=0 — continuing without W&B (not recommended for submission).")
+        return
+    if allow_no_wandb:
+        print(
+            "WARNING: SOC_ALLOW_NO_WANDB=1 — training without W&B. "
+            "Use only for quick smoke tests; hackathon runs need WANDB_API_KEY."
+        )
+        return
+    raise RuntimeError(
+        "Experimental tracking is required: set WANDB_API_KEY (or Colab Secret WANDB_API_KEY with "
+        "notebook access). For smoke tests only, set SOC_ALLOW_NO_WANDB=1. "
+        "To disable this check entirely, set SOC_EXPERIMENT_TRACKING=0."
+    )
 
 
 def wandb_login_noninteractive(report_to: str) -> None:
@@ -513,6 +553,7 @@ def main() -> None:
     print("Initializing GRPO pipeline...")
     report_to = resolve_wandb_report_to()
     wandb_login_noninteractive(report_to)
+    enforce_experiment_tracking(report_to)
     warmup_space(API_URL)
 
     model, tokenizer = FastLanguageModel.from_pretrained(

@@ -29,6 +29,7 @@ Use this list when you (the **team leader**) submit **one** official entry. Miss
 |-------------|----------------|
 | **OpenEnv (latest)** — build on the framework, don’t reinvent it | `openenv.yaml`, FastAPI app `server/app.py`, Gym-style `reset` / `step` / `state`, Pydantic models in `models.py` |
 | **Working training script** (Unsloth **or** HF TRL **or** other RL stack), **ideally re-runnable in Colab** | **Primary:** [`training/colab_grpo_all_in_one.py`](training/colab_grpo_all_in_one.py) (copy into a Colab notebook cell or open via Colab → *File → Upload*). **Also:** [`training/colab_unsloth_grpo.py`](training/colab_unsloth_grpo.py), [`training/colab_unsloth_ppo.py`](training/colab_unsloth_ppo.py) |
+| **Experimental tracking on** while training (organizer note) | **Weights & Biases:** set `WANDB_API_KEY` (or Colab Secret). The all-in-one script **requires** W&B by default; see [Experimental tracking](#experimental-tracking-required-for-training-runs). |
 | **Evidence you trained** — at minimum **loss and reward** from a real run | **Reward / eval curves (repo):** [`outputs/evals/red_vs_blue_curve.png`](outputs/evals/red_vs_blue_curve.png), [`outputs/evals/reward_curve_baseline_vs_trained.png`](outputs/evals/reward_curve_baseline_vs_trained.png), [`outputs/evals/scores.json`](outputs/evals/scores.json). **W&B panel exports:** [`wandb_chart_01.png`](outputs/evals/wandb_chart_01.png) … [`03`](outputs/evals/wandb_chart_03.png). **Live W&B:** [soc-simulator-grpo](https://wandb.ai/rajeaditya999-/soc-simulator-grpo) |
 | **Short writeup or video** (HF mini-blog **or** an **under-two-minute** YouTube video) — **public URL only** (no large video files in the Space repo) | **Draft in repo:** [`outputs/hf_blog_post.md`](outputs/hf_blog_post.md) → publish on Hugging Face and **paste the public post URL below**. **Video (optional):** paste YouTube URL below. **Slides:** paste URL below. |
 | **Environment on Hugging Face Spaces** (discoverable, runnable) | **Submit this Space URL to organizers:** [META_HACKATHON_FINALE](https://huggingface.co/spaces/Aditya9605/META_HACKATHON_FINALE) · **Live app:** [aditya9605-meta-hackathon-finale.hf.space](https://aditya9605-meta-hackathon-finale.hf.space) |
@@ -131,6 +132,15 @@ These aggregates match the latest committed `outputs/evals/scores.json` (50 epis
 - **GRPO + Unsloth (recommended Colab entrypoint):** `training/colab_grpo_all_in_one.py`
 - GRPO + Unsloth (alternate): `training/colab_unsloth_grpo.py`
 - PPO + TRL minimal example: `training/colab_unsloth_ppo.py`
+
+### Experimental tracking (required for training runs)
+
+Hackathon guidance: **turn on experiment tracking** when training models (loss, reward, KL, etc.). This repo uses **Weights & Biases** in the Colab scripts.
+
+- Set **`WANDB_API_KEY`** (or Colab Secret **`WANDB_API_KEY`** with notebook access). The script defaults to project **`soc-simulator-grpo`** (`WANDB_PROJECT`).
+- In **`colab_grpo_all_in_one.py`**, tracking is **mandatory by default**: if no key is found, training **stops** with a clear error.
+- **Smoke tests only:** `SOC_ALLOW_NO_WANDB=1` allows `report_to=none` without a key (not for submission runs).
+- **Fully disable the check (not recommended):** `SOC_EXPERIMENT_TRACKING=0`.
 
 ## Quick Start
 
