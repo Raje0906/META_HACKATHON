@@ -13,5 +13,8 @@ outputs/evals/*
 !outputs/evals/scores.json
 !outputs/evals/red_vs_blue_curve.png
 !outputs/evals/reward_curve_baseline_vs_trained.png
+!outputs/evals/wandb_chart_01.png
+!outputs/evals/wandb_chart_02.png
+!outputs/evals/wandb_chart_03.png
 
 .tmp_check_ids.py

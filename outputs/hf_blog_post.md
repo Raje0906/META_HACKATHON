@@ -83,22 +83,56 @@ We are proud of the hard task result. We are also proud that we publish the medi
 
 ## What lives in `outputs/evals/` (figures + numbers)
 
-Every evaluation run drops a small bundle in **`outputs/evals/`** on GitHub so nobody has to trust a screenshot we took on a laptop somewhere.
+Every evaluation run drops a small bundle in **`outputs/evals/`** at the root of the repo (for example on your machine: `...\META HACKATHON\outputs\evals\`). You should see **three** artifacts there:
+
+| File | What it is |
+|------|------------|
+| `red_vs_blue_curve.png` | Three-panel plot: baseline vs trained (blue) and red pressure, smoothed over episodes. |
+| `reward_curve_baseline_vs_trained.png` | Same figure, second filename (handy for templates that ask for “reward curve” by name). |
+| `scores.json` | Raw per-episode scores, task summaries, and uplift numbers. |
 
 **The plot (three panels: easy / medium / hard).** Each panel tracks episodes on the horizontal axis and score on the vertical. You get a dashed **baseline** policy, a solid **trained** policy, and a **red** stress line so you can see defender progress *and* adversary pressure in one glance. Values are smoothed so the eye can follow trends instead of chasing single-episode noise.
 
-![Three-task eval: baseline vs trained blue team scores and red pressure (smoothed over 50 episodes per task)](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
+If you are reading this file **inside the repo**, the images below load from the `evals` folder next to this post (`outputs/evals/`). If you paste this markdown elsewhere (HF, Notion, etc.) and the images break, use the **raw GitHub** links in the bullet list under each figure.
 
-Our training script saves that same figure under **two filenames** so different docs (README vs hackathon PDF vs your own notes) can point at whichever name they expect. The pixels match—only the label on disk changes:
+**Figure A — `red_vs_blue_curve.png`**
 
-- [`outputs/evals/red_vs_blue_curve.png`](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png) (direct image link)  
-- [`outputs/evals/reward_curve_baseline_vs_trained.png`](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/reward_curve_baseline_vs_trained.png) (same figure; “baseline vs trained” naming)
+![Three-task eval: baseline vs trained blue team scores and red pressure (smoothed over 50 episodes per task)](evals/red_vs_blue_curve.png)
 
-**The spreadsheet of truth.** If you want to re-plot, argue with our smoothing, or drop numbers into a slide:
+- Repo path: `outputs/evals/red_vs_blue_curve.png`  
+- Raw (always works in browsers): [`red_vs_blue_curve.png` on GitHub](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
 
-- [`outputs/evals/scores.json`](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/scores.json) — per-episode arrays, summaries, and the overall uplift we quote in this post.
+**Figure B — `reward_curve_baseline_vs_trained.png`**
 
-Clone the repo or hit the raw links above; either way, the eval folder is meant to be **boring, reproducible, and a little bit brave**.
+![Same eval run, saved under the “baseline vs trained reward” filename](evals/reward_curve_baseline_vs_trained.png)
+
+- Repo path: `outputs/evals/reward_curve_baseline_vs_trained.png`  
+- Raw: [`reward_curve_baseline_vs_trained.png` on GitHub](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/reward_curve_baseline_vs_trained.png)
+
+Our script writes the **same pixels** to both PNGs; only the filename differs so checklists and READMEs can point at either name.
+
+**Numbers — `scores.json`**
+
+- Repo path: `outputs/evals/scores.json`  
+- Raw: [`scores.json` on GitHub](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/scores.json) — per-episode arrays, summaries, and the overall uplift we quote in this post.
+
+Clone the repo and open **`outputs/evals/`** locally, or use the raw links above; either way, this folder is meant to be **boring, reproducible, and a little bit brave**.
+
+### Training screenshots from Weights & Biases (also in `outputs/evals/`)
+
+We export a few **W&B chart panels** into the same folder so the blog and README do not depend on a live W&B session. On disk they are named `wandb_chart_01.png` through `wandb_chart_03.png` (exports from our GRPO run: reward / KL / loss-style metrics—open the files or the [W&B project](https://wandb.ai/rajeaditya999-/soc-simulator-grpo) to match each curve to its exact series name).
+
+![W&B training chart 1 — from project soc-simulator-grpo](evals/wandb_chart_01.png)
+
+- `outputs/evals/wandb_chart_01.png` · [raw on GitHub](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/wandb_chart_01.png)
+
+![W&B training chart 2 — from project soc-simulator-grpo](evals/wandb_chart_02.png)
+
+- `outputs/evals/wandb_chart_02.png` · [raw on GitHub](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/wandb_chart_02.png)
+
+![W&B training chart 3 — from project soc-simulator-grpo](evals/wandb_chart_03.png)
+
+- `outputs/evals/wandb_chart_03.png` · [raw on GitHub](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/wandb_chart_03.png)
 
 ---
 
