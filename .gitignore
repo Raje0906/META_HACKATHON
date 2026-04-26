@@ -1,4 +1,4 @@
-﻿# Python build/cache artifacts
+# Python build/cache artifacts
 __pycache__/
 **/__pycache__/
 *.pyc
@@ -7,4 +7,3 @@ __pycache__/
 *.egg-info/
 
 # Local/derived outputs
-outputs/evals/
