@@ -27,10 +27,21 @@ import json
 import torch
 import random
 import requests
-from typing import List, Dict
+from typing import List, Dict, Any
 from datasets import Dataset
-from unsloth import FastLanguageModel, is_bfloat16_supported
+from unsloth import FastLanguageModel, PatchFastRL, is_bfloat16_supported
+
+# Patch TRL GRPO *before* constructing GRPOTrainer (Unsloth + TRL requirement).
+PatchFastRL("GRPO", FastLanguageModel)
+
 from trl import GRPOConfig, GRPOTrainer
+
+
+def patch_unsloth_text_only_grpo_trainer(trainer: Any) -> None:
+    """Avoid AttributeError on text LMs: UnslothGRPOTrainer may expect VL token ids."""
+    for name in ("image_token_id", "vision_start_token_id", "vision_end_token_id"):
+        if not hasattr(trainer, name):
+            setattr(trainer, name, None)
 
 # ---------------------------------------------------------------------------
 # 1. Configuration & Setup
@@ -237,6 +248,8 @@ def main():
         args=training_args,
         train_dataset=dataset,
     )
+
+    patch_unsloth_text_only_grpo_trainer(trainer)
     
     # --- Execute Training ---
     print("\n⚔️ Beginning GRPO Training Loop...")
