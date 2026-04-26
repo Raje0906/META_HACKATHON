@@ -79,7 +79,26 @@ From our **latest committed evaluation** (50 episodes per task), the **overall a
 
 We are proud of the hard task result. We are also proud that we publish the medium task wobble. Judges have seen polished demos. They have not always seen teams willing to show the variance that *real* training surfaces.
 
-![Baseline vs trained (blue) with red pressure — smoothed over episodes](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
+---
+
+## What lives in `outputs/evals/` (figures + numbers)
+
+Every evaluation run drops a small bundle in **`outputs/evals/`** on GitHub so nobody has to trust a screenshot we took on a laptop somewhere.
+
+**The plot (three panels: easy / medium / hard).** Each panel tracks episodes on the horizontal axis and score on the vertical. You get a dashed **baseline** policy, a solid **trained** policy, and a **red** stress line so you can see defender progress *and* adversary pressure in one glance. Values are smoothed so the eye can follow trends instead of chasing single-episode noise.
+
+![Three-task eval: baseline vs trained blue team scores and red pressure (smoothed over 50 episodes per task)](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
+
+Our training script saves that same figure under **two filenames** so different docs (README vs hackathon PDF vs your own notes) can point at whichever name they expect. The pixels match—only the label on disk changes:
+
+- [`outputs/evals/red_vs_blue_curve.png`](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png) (direct image link)  
+- [`outputs/evals/reward_curve_baseline_vs_trained.png`](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/reward_curve_baseline_vs_trained.png) (same figure; “baseline vs trained” naming)
+
+**The spreadsheet of truth.** If you want to re-plot, argue with our smoothing, or drop numbers into a slide:
+
+- [`outputs/evals/scores.json`](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/scores.json) — per-episode arrays, summaries, and the overall uplift we quote in this post.
+
+Clone the repo or hit the raw links above; either way, the eval folder is meant to be **boring, reproducible, and a little bit brave**.
 
 ---
 
