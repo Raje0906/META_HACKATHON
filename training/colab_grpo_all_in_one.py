@@ -33,6 +33,12 @@
 #
 # --- Optional: auto-pip from this script (set env then run) ---
 #   os.environ["SOC_COLAB_AUTO_PIP"] = "1"
+#
+# IMPORTANT: If you set SOC_COLAB_AUTO_PIP only inside `if __name__ == "__main__"`
+# at the *bottom* of this file, it is TOO LATE — `_maybe_auto_pip()` already ran at
+# import time (before Unsloth). Use one of:
+#   • Colab cell *before* %run:  import os; os.environ["SOC_COLAB_AUTO_PIP"] = "1"
+#   • Or rely on Colab auto-detect below (enabled unless SOC_COLAB_AUTO_PIP=0).
 # =============================================================================
 
 from __future__ import annotations
@@ -46,6 +52,24 @@ import subprocess
 import sys
 import time
 from typing import Any, Dict, List, Optional
+
+
+def _colab_enable_auto_pip_unless_opt_out() -> None:
+    """On Colab, turn on SOC_COLAB_AUTO_PIP before Unsloth imports unless user set 0."""
+    if os.environ.get("SOC_COLAB_AUTO_PIP", "").strip() == "0":
+        return
+    if os.environ.get("SOC_COLAB_AUTO_PIP", "").strip() == "1":
+        return
+    try:
+        import google.colab  # noqa: F401
+    except ImportError:
+        return
+    os.environ["SOC_COLAB_AUTO_PIP"] = "1"
+    print(
+        "Colab: SOC_COLAB_AUTO_PIP=1 (install deps, then prefer Runtime → Restart and re-run). "
+        "Set SOC_COLAB_AUTO_PIP=0 before import to skip."
+    )
+
 
 # ---------------------------------------------------------------------------
 # Optional one-click pip (Colab only, guarded by SOC_COLAB_AUTO_PIP=1)
@@ -91,6 +115,7 @@ def _maybe_auto_pip() -> None:
     print("Auto-pip done. Prefer: Runtime → Restart session, then re-run without SOC_COLAB_AUTO_PIP.")
 
 
+_colab_enable_auto_pip_unless_opt_out()
 _maybe_auto_pip()
 
 import requests
@@ -340,8 +365,9 @@ def _normalize_action_dict(obj: Any) -> Optional[dict]:
     if not isinstance(obj, dict):
         return None
     at = obj.get("action_type") or obj.get("action") or obj.get("type")
-    if isinstance(at, str):
-        at = at.strip()
+    if not isinstance(at, str):
+        return None
+    at = at.strip()
     if at not in VALID_ACTIONS:
         return None
     tgt = obj.get("target")
