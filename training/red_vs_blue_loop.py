@@ -272,6 +272,58 @@ def _avg(arr):
     return float(sum(arr) / len(arr)) if arr else 0.0
 
 
+def render_plots_from_scores_json(scores_path: str = "outputs/evals/scores.json") -> None:
+    """Rebuild evaluation PNGs from an existing scores.json (no API calls)."""
+    path = os.path.join(os.path.dirname(__file__), "..", scores_path)
+    path = os.path.normpath(path)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    meta = data.get("metadata") or {}
+    tasks = meta.get("tasks") or TASKS
+    episodes = int(meta.get("episodes") or EPISODES)
+    all_results = data["results"]
+
+    plt.style.use("seaborn-v0_8-darkgrid")
+    fig, axs = plt.subplots(1, 3, figsize=(18, 5))
+    titles = {
+        "easy_phishing_login": "Phishing login [easy]",
+        "medium_brute_force_geo": "Brute force + geo [medium]",
+        "hard_apt_multistage": "APT kill chain [hard]",
+    }
+    for idx, t in enumerate(tasks):
+        ax = axs[idx]
+        x = np.arange(1, episodes + 1)
+        base = np.array(all_results[t]["baseline_blue_scores"])
+        train = np.array(all_results[t]["trained_blue_scores"])
+        red = np.array(all_results[t]["trained_red_scores"])
+
+        ax.plot(x, smooth(base, 7), "--", color="#6b7280", linewidth=2, label="Baseline blue score" if idx == 0 else "")
+        ax.plot(x, smooth(train, 7), "-", color="#2563eb", linewidth=2.5, label="Trained blue score" if idx == 0 else "")
+        ax.plot(x, smooth(red, 7), "-", color="#dc2626", linewidth=2, alpha=0.85, label="Red evasion rate" if idx == 0 else "")
+        ax.axhline(y=0.5, color="gray", linestyle="--", alpha=0.4)
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_xlim(1, episodes)
+        ax.set_title(titles.get(t, t))
+        ax.set_xlabel("Episode")
+        if idx == 0:
+            ax.set_ylabel("Score")
+
+    fig.legend(loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.04))
+    fig.suptitle("SOC Simulator - Baseline vs Trained (Blue) and Red Evasion", fontsize=14, fontweight="bold")
+    plt.tight_layout(rect=[0, 0.04, 1, 0.95])
+    out_dir = os.path.join(os.path.dirname(__file__), "..", "outputs", "evals")
+    os.makedirs(out_dir, exist_ok=True)
+    p1 = os.path.join(out_dir, "reward_curve_baseline_vs_trained.png")
+    p2 = os.path.join(out_dir, "red_vs_blue_curve.png")
+    plt.savefig(p1, dpi=150, bbox_inches="tight")
+    plt.savefig(p2, dpi=150, bbox_inches="tight")
+    plt.close()
+    print("Wrote:", p1)
+    print("Wrote:", p2)
+
+
 def main():
     os.makedirs("outputs/evals", exist_ok=True)
     warmup_space(BASE_URL)
@@ -394,4 +446,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--plots-only":
+        render_plots_from_scores_json()
+    else:
+        main()

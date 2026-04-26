@@ -13,3 +13,5 @@ outputs/evals/*
 !outputs/evals/scores.json
 !outputs/evals/red_vs_blue_curve.png
 !outputs/evals/reward_curve_baseline_vs_trained.png
+
+.tmp_check_ids.py

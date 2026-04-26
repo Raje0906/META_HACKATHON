@@ -11,34 +11,48 @@ pinned: false
 
 `SOC Simulator` is an OpenEnv-compliant environment for training LLM agents to act as SOC analysts in partially observable, adversarial security workflows.
 
-It targets Hackathon themes:
-- Theme #4 (Self-Improvement): adaptive Red Agent that mutates attacks.
-- Theme #3.1 (Professional Tasks): realistic tool/API style SOC operations.
-- Theme #3.2 bonus angle: schema drift and robust action parsing.
+### Hackathon theme alignment (OpenEnv India 2026)
+
+| Theme | How this project maps |
+|------|------------------------|
+| **#1 Multi-Agent** | **Blue** (defender LLM / analyst policy) vs **Red** (adaptive adversary in `env/red_agent.py`): competitive dynamics, partial observability, and curriculum-style escalation. |
+| **#2 Long-horizon planning** | Multi-step episodes (easy → medium → hard), sparse terminal grading plus dense step rewards; hard task follows a multi-stage kill chain requiring sustained reasoning. |
+| **#3.1 Professional tasks** | Tool-like actions (`block_ip`, `flag_user`, `isolate_host`, …) over structured SIEM-style observations and HTTP API (`reset` / `step`), not pattern-matching shortcuts. |
+| **#4 Self-improvement** | Red agent mutates scenarios; training (GRPO) shows measurable uplift vs baseline on live Space rollouts (`outputs/evals/`). |
+| **#5 Wild card** | Cyber SOC + schema drift + optional live threat intel — niche domain for LLM RL. |
 
 ## Links for Judges
 
-- Hugging Face Space: [aditya9605-meta-hackathon-finale](https://aditya9605-meta-hackathon-finale.hf.space)
+- **Hugging Face Space (submit this URL):** [aditya9605-meta-hackathon-finale](https://aditya9605-meta-hackathon-finale.hf.space)
 - API docs: [Space /docs](https://aditya9605-meta-hackathon-finale.hf.space/docs)
 - Interactive dashboard: [Space /web](https://aditya9605-meta-hackathon-finale.hf.space/web)
-- W&B run: [soc-simulator-grpo](https://wandb.ai/rajeaditya999-/soc-simulator-grpo)
+- **GitHub repo:** [Raje0906/META_HACKATHON](https://github.com/Raje0906/META_HACKATHON) (full source, eval plots, and training scripts)
+- W&B: [soc-simulator-grpo](https://wandb.ai/rajeaditya999-/soc-simulator-grpo)
+- Mini-blog (HF-friendly markdown): `outputs/hf_blog_post.md` — publish on HF or link from README
 - Pitch script: `hackathon_pitch.md`
-- Blog draft: `outputs/hf_blog_post.md`
+- **Optional:** add an under-two-minute YouTube walkthrough and link it here (do not commit large video files; use URL only)
 
 ## Minimum Requirement Checklist (Hackathon)
 
 - OpenEnv latest-compatible environment: `openenv.yaml` + FastAPI server in `server/app.py`.
-- Training script using TRL/Unsloth:
-  - `training/colab_unsloth_grpo.py`
-  - `training/colab_unsloth_ppo.py`
-- Evidence of training progress:
-  - `outputs/evals/scores.json`
-  - `outputs/evals/reward_curve_baseline_vs_trained.png`
-  - `outputs/evals/red_vs_blue_curve.png`
-- Environment hosted on Hugging Face Space: [live Space URL](https://aditya9605-meta-hackathon-finale.hf.space)
-- Short writeup and pitch script linked in repo:
-  - `outputs/hf_blog_post.md`
-  - `hackathon_pitch.md`
+- **Training (TRL / Unsloth, Colab-ready):**
+  - Canonical all-in-one GRPO script: `training/colab_grpo_all_in_one.py`
+  - Also: `training/colab_unsloth_grpo.py`, `training/colab_unsloth_ppo.py`
+- **Evidence of training** (committed under `outputs/evals/`):
+  - `scores.json`
+  - `reward_curve_baseline_vs_trained.png`
+  - `red_vs_blue_curve.png`
+- Environment hosted on Hugging Face Space: [live Space](https://aditya9605-meta-hackathon-finale.hf.space)
+- README motivates the problem, explains the env, and links Space + blog/video/slides (this file).
+- Rebuild plots from existing JSON without re-hitting the API: `python training/red_vs_blue_loop.py --plots-only`
+
+### Training progress (baseline vs trained)
+
+![Baseline vs trained blue scores and red evasion](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
+
+*Smoothed per-episode scores from `training/red_vs_blue_loop.py`; raw numbers in `outputs/evals/scores.json`.*
+
+If the image above does not load immediately after a push, use the copy in the repo: [`outputs/evals/red_vs_blue_curve.png`](outputs/evals/red_vs_blue_curve.png).
 
 ## What Makes This Environment Challenging
 
@@ -84,7 +98,8 @@ Note: this snapshot is from a short reliability run. Re-run the same script for 
 
 ## Minimal Training Scripts (Hackathon Requirement)
 
-- GRPO + Unsloth (Colab-oriented): `training/colab_unsloth_grpo.py`
+- **GRPO + Unsloth (recommended Colab entrypoint):** `training/colab_grpo_all_in_one.py`
+- GRPO + Unsloth (alternate): `training/colab_unsloth_grpo.py`
 - PPO + TRL minimal example: `training/colab_unsloth_ppo.py`
 
 ## Quick Start
