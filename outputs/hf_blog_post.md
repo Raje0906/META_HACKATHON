@@ -1,32 +1,104 @@
 ---
-title: "SOC Simulator: Training an RL Agent to Hunt Cyber Threats"
-tags: ["reinforcement-learning", "cybersecurity", "openenv", "llama-3", "hackathon"]
+title: "We Taught an LLM to Think Like a Tier-2 Analyst (Without Letting It Cheat)"
+tags: ["reinforcement-learning", "cybersecurity", "openenv", "soc", "grpo", "hackathon", "llm-agents"]
 ---
 
-# SOC Simulator: Training an RL Agent to Hunt Cyber Threats
+# We Taught an LLM to Think Like a Tier-2 Analyst (Without Letting It Cheat)
 
-We built **SOC Simulator**, an OpenEnv-compliant cybersecurity environment, to teach LLMs how to perform real Security Operations Center (SOC) incident response.
+If you have ever watched a real SOC on a bad day, you know the job is not “grep for a bad IP and call it a win.” It is messy: alerts that disagree, logs that use different field names every time someone upgrades a collector, benign activity that *looks* scary, and attacks that only make sense when you connect three boring events across twenty minutes. Most importantly, you rarely see the full story at once. You act anyway.
 
-Training large language models on static SIEM (Security Information and Event Management) logs has a fundamental flaw: the model doesn't learn how to "hunt" for threats; it merely memorizes static IPs and payloads. We solved this by developing an environment with high schema drift, live botnet scraping, and dense reinforcement learning (RL) reward pipelines.
+**SOC Simulator** is our answer to a question we kept asking while reading glossy AI security demos: *can we train a language model to get better at that kind of thinking—not just at quoting MITRE trivia—inside a real interactive loop?*
 
-### The Adversarial Ecosystem
-Our environment features an autonomous **Red Agent** that reacts to the completions of the Blue Agent (our Llama-3 based analyst). Whenever the Blue Agent successfully suppresses an attack—such as isolating an infected host or blocking a Command & Control IP—the Red Agent escalates the difficulty in the next episode. It silently mutates the attacker's infrastructure, switching out threat IPs and shifting MITRE ATT&CK techniques.
+We built this as an **OpenEnv** environment: a live world the model can step through, break, get penalized in, and (sometimes) fix. This post is the story of that world, why we made it cruel in the right ways, and what happened when we actually ran training.
 
-This creates a self-driven, auto-escalating curriculum where the LLM is constantly forced to adapt to novel threats.
+---
 
-![Red vs Blue Reward Curve](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
+## Why a simulator, and why now?
 
-### Proof of Learning
-We evaluate using a baseline-vs-trained protocol (`training/red_vs_blue_loop.py`) and publish both the raw JSON metrics and plots under `outputs/evals/`.
+Static benchmarks teach models to pattern-match. A spreadsheet of labeled logs rewards the model that memorizes the training set. Real analysts do something harder: they **commit to actions under uncertainty**—block an IP, flag a user, isolate a host, escalate, or (rarely) consciously do nothing—and then live with the consequences.
 
-Our claim is intentionally strict: we only report values directly present in `outputs/evals/scores.json` from the latest run. This avoids overfitting the narrative to one lucky episode and makes the evidence reproducible for judges.
+Reinforcement learning is a natural fit, but only if the environment refuses to be gamed. So we focused on three things that sound boring on a slide but matter enormously in practice:
 
-From the latest run:
-- mean uplift vs baseline: **+0.377**
-- easy task uplift: **+0.542**
-- medium task uplift: **+0.227**
-- hard task uplift: **+0.363**
+1. **Partial observability** — you see alerts and recent events, not the attacker’s full playbook.  
+2. **Structured actions** — the model must output real decisions, not an essay.  
+3. **Adversarial pressure** — the world fights back. Quietly. Like real attackers do.
 
-We also hardened the policy against reward hacking by combining step-level rewards, terminal grading, and action-level penalties (false positives, redundant actions, unnecessary ignore, and missed-threat penalties), plus schema-drift robustness checks.
+---
 
-Check out the environment on our Hugging Face Space to try it yourself!
+## Meet the room: easy panic, medium grind, hard nightmare
+
+We ship three tasks on purpose. They are not three sizes of the same puzzle; they are three different *shapes* of stress.
+
+**Easy — phishing that actually worked.** Someone clicked. Credentials showed up on a VPN edge case you wish you did not have to explain to leadership. The “right” move is not one magic button; it is the disciplined sequence a tired analyst still performs: stop the bleeding, then account hygiene.
+
+**Medium — brute force that becomes a story.** Failed auth attempts pile up, geography stops making sense, and a host that used to be boring is suddenly interesting. The environment rewards correlation, not the loudest alert.
+
+**Hard — a full kill chain.** Recon becomes access becomes lateral movement becomes exfiltration. If your policy only ever learns the first act of the play, you lose slowly and expensively.
+
+Across all three, we keep the observation format honest: SIEM-ish JSON, alerts with severity, events with messy details. It should feel like a dashboard, not a exam question with the answer in bold.
+
+---
+
+## The part everyone skips: we made “cheating” expensive
+
+Here is an uncomfortable truth about RL environments: if you are not careful, the smartest learner in the room is not the defender. It is the exploit that finds the shortest path to a high score.
+
+We tried to design rewards the way a good lead would review a shift:
+
+- **You get credit for meaningful containment** — the right block, flag, isolation, or escalation when the scenario calls for it.  
+- **You pay for theater** — false positives hurt, “ignore” as a lazy default hurts, and missing an actual threat hurts more.  
+- **We bias toward closure** — finishing the job should feel better than stalling forever in analysis paralysis.
+
+We also added **schema drift** on purpose. The same idea—“source IP”—might show up under different keys. If your policy only works when the JSON spells things the friendly way, it is not ready for production. Full stop.
+
+Optional **live threat intel** can feed the world real noisy signals from the internet. That is not there to look cool in a README. It is there because the real world is not a closed dataset.
+
+---
+
+## Red team as a teacher, not a gimmick
+
+We are not trying to win a cyberwar in a notebook. We are trying to build **curriculum**.
+
+Our **Red** side mutates scenarios: different IPs, different accounts, different emphasis. When **Blue** gets competent, the world does not hand out participation trophies. It adapts. That is closer to how teams actually mature than a static leaderboard ever will be.
+
+If you care about hackathon themes: this is multi-agent tension (blue vs red), professional tooling (structured actions on a live API), long-horizon reasoning on the hard task, and self-improvement through an escalating curriculum—not because we checked boxes, but because those boxes describe real training pain.
+
+---
+
+## What we measured (and we are not going to cherry-pick)
+
+We trained with **GRPO** using **Unsloth** and **TRL**, tied to our deployed **Hugging Face Space** so the model learns against a living server, not a frozen JSON dump. We logged runs to **Weights & Biases** so the loss-and-reward story is visible, not whispered about in a private notebook.
+
+For evaluation, we run a **baseline vs trained** loop across many episodes and save everything under `outputs/evals/`—plots plus raw JSON—so anyone can reproduce the headline numbers.
+
+From our **latest committed evaluation** (50 episodes per task), the **overall average uplift** for the trained policy vs the baseline is **+0.195**. Breaking that down honestly:
+
+- **Easy:** uplift **+0.057** — modest on paper, but the trained run shows **clear learning within the run** (average score on the **last 10 episodes** is **0.153** vs **0.065** on the **first 10**). That is the shape you want: not a lottery ticket, a slope.  
+- **Medium:** average uplift is slightly negative (**−0.022**) over the full 50 episodes—worth saying out loud. Security work is noisy; some weeks your playbook meets a weird edge case and your metrics look petty. Still, the trained policy **improves from early to late episodes** (**+0.035** from first 10 to last 10), which tells us the signal is not dead; the aggregate average is just unforgiving.  
+- **Hard:** uplift **+0.551** — this is where the trained policy really separates from the baseline. On a multi-stage incident, “sort of right” is not enough; here, the trained agent consistently pushes into territory the baseline rarely reaches.
+
+We are proud of the hard task result. We are also proud that we publish the medium task wobble. Judges have seen polished demos. They have not always seen teams willing to show the variance that *real* training surfaces.
+
+![Baseline vs trained (blue) with red pressure — smoothed over episodes](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
+
+---
+
+## Try it like a judge, not like a linter
+
+If you only read the OpenAPI spec, you will understand the plumbing. If you **open the Space**, reset a scenario, watch the alerts, and step actions while the risk meter moves, you will understand the *point*.
+
+- **Live Space:** [META_HACKATHON_FINALE](https://huggingface.co/spaces/Aditya9605/META_HACKATHON_FINALE)  
+- **Running app:** [aditya9605-meta-hackathon-finale.hf.space](https://aditya9605-meta-hackathon-finale.hf.space)  
+- **Dashboard:** [`/web`](https://aditya9605-meta-hackathon-finale.hf.space/web) on the same deployment  
+- **Code & eval artifacts:** [GitHub — META_HACKATHON](https://github.com/Raje0906/META_HACKATHON)  
+- **Training curves:** [W&B — soc-simulator-grpo](https://wandb.ai/rajeaditya999-/soc-simulator-grpo)
+
+---
+
+## Closing thought
+
+We did not set out to build the world’s most impressive API diagram. We set out to build a place where an LLM can **practice** the uncomfortable parts of defense—uncertainty, consequence, adaptation—and where we can **prove** it learned something, not just memorized something.
+
+If you are judging this submission: spin up the Space, pick the hard task, and watch what happens when a policy has to chain decisions instead of spitting out a single heroic sentence. That moment—when the environment answers back—is the whole project.
+
+We hope it resonates as much as it terrified us while we were building it.

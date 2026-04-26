@@ -110,10 +110,10 @@ Generated artifacts:
 - `outputs/evals/red_vs_blue_curve.png`
 
 Latest run snapshot (from current `scores.json`):
-- Mean uplift vs baseline: `+0.377`
-- Easy uplift: `+0.542` (`q_best_action=block_ip`)
-- Medium uplift: `+0.227` (`q_best_action=block_ip`)
-- Hard uplift: `+0.363` (`q_best_action=block_ip`)
+- Mean uplift vs baseline: `+0.195`
+- Easy uplift: `+0.057` (`q_best_action=flag_user`)
+- Medium uplift: `-0.022` (`q_best_action=block_ip`)
+- Hard uplift: `+0.551` (`q_best_action=block_ip`)
 
 These aggregates match the latest committed `outputs/evals/scores.json` (50 episodes per task in that file’s metadata). Re-run `training/red_vs_blue_loop.py` to refresh after environment or policy changes.
 
