@@ -16,5 +16,7 @@ outputs/evals/*
 !outputs/evals/wandb_chart_01.png
 !outputs/evals/wandb_chart_02.png
 !outputs/evals/wandb_chart_03.png
+!outputs/evals/screenshots/
+!outputs/evals/screenshots/**
 
 .tmp_check_ids.py
