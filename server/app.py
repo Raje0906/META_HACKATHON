@@ -1740,6 +1740,9 @@ function renderSysState(s) {
 }
 
 function renderAlerts(alerts) {
+  if (currentObservation && currentObservation.risk_score === 0) {
+    alerts = [];
+  }
   alertState = alerts.map((a) => ({
     ...a,
     _timestamp: nowTime()
