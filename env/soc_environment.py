@@ -509,6 +509,7 @@ class SOCEnvironment:
                 "step_info": info,
                 "correct_detections": self._state.correct_detections,
                 "false_positives": self._state.false_positives,
+                "true_threats": self._state.true_threats,
             },
             task_id=self._current_task_id,
             step_number=self._state.step_count,

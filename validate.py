@@ -370,7 +370,8 @@ def check_dockerfile() -> bool:
 
     content = df_path.read_text(encoding="utf-8")
     ok &= check("FROM instruction present", "FROM" in content)
-    ok &= check("EXPOSE 8000", "EXPOSE 8000" in content)
+    expose_ok = "EXPOSE 7860" in content or "EXPOSE 8000" in content
+    ok &= check("EXPOSE 7860 or 8000 (HF Spaces default 7860)", expose_ok)
     ok &= check("CMD runs uvicorn", "uvicorn" in content)
     ok &= check("Copies requirements.txt", "requirements.txt" in content)
     ok &= check("HEALTHCHECK defined", "HEALTHCHECK" in content)

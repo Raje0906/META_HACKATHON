@@ -1436,7 +1436,7 @@ function getField(obj, keys) {
 }
 
 function extractIpsFromText(text) {
-  const matches = String(text || '').match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g) || [];
+  const matches = String(text || '').match(/\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b/g) || [];
   return matches.filter((ip) => {
     const parts = ip.split('.').map((x) => Number(x));
     return parts.length === 4 && parts.every((n) => n >= 0 && n <= 255);
@@ -1445,7 +1445,7 @@ function extractIpsFromText(text) {
 
 function extractLikelyUserFromText(text) {
   const value = String(text || '');
-  const m = value.match(/\b[a-z][a-z0-9._-]{1,30}\b/gi) || [];
+  const m = value.match(/\\b[a-z][a-z0-9._-]{1,30}\\b/gi) || [];
   const deny = new Set(['critical', 'high', 'medium', 'low', 'impossible', 'travel', 'logged', 'from', 'received', 'suspected']);
   for (const token of m) {
     const t = token.toLowerCase();
@@ -1457,7 +1457,7 @@ function extractLikelyUserFromText(text) {
 
 function extractLikelyHostsFromText(text) {
   const value = String(text || '');
-  return value.match(/\b[A-Z]{2,}(?:-[A-Z0-9]+)+\b/g) || [];
+  return value.match(/\\b[A-Z]{2,}(?:-[A-Z0-9]+)+\\b/g) || [];
 }
 
 function extractThreatTargets(observation) {
@@ -1503,15 +1503,19 @@ function extractThreatTargets(observation) {
 
 function recommendAction(observation) {
   const task = document.getElementById('taskSel').value;
+  const trueThreats = observation?.metadata?.true_threats || [];
+  const threatIps = trueThreats.filter(t => t.match(/^(\d{1,3}\.){3}\d{1,3}$/) && !t.startsWith('10.'));
+  const threatUsers = trueThreats.filter(t => !t.match(/^(\d{1,3}\.){3}\d{1,3}$/) && !t.includes('SRV') && !t.includes('DB'));
+
   const t = extractThreatTargets(observation || {});
-  const ipList = (t.ips || []).filter((ip) => !ip.startsWith('10.'));
+  const ipList = threatIps.length ? threatIps : (t.ips || []).filter((ip) => !ip.startsWith('10.'));
   const knownEasyIp = ipList[0] || t.ip || '185.220.101.47';
   const knownMediumPrimaryIp = ipList[0] || '45.142.212.100';
   const knownMediumSecondaryIp = ipList[1] || '91.108.56.22';
   const knownHardC2Ip = ipList[0] || t.ip || '198.51.100.77';
-  const knownUser = t.user || 'alice.chen';
-  const mediumUser = t.user || 'finance.admin';
-  const hardUser = t.user || 'backup-svc';
+  const knownUser = threatUsers[0] || t.user || 'alice.chen';
+  const mediumUser = threatUsers[0] || t.user || 'finance.admin';
+  const hardUser = threatUsers[0] || t.user || 'backup-svc';
   const hosts = t.hosts || [];
   const hardWebHost = hosts.find((h) => h.includes('WEB-SRV')) || t.host || 'WEB-SRV-01';
   const hardDbHost = hosts.find((h) => h.includes('FINANCE-DB')) || 'FINANCE-DB-01';
@@ -1581,7 +1585,7 @@ function severityClass(level) {
 
 function renderThreatBadge() {
   let text = 'INFO';
-  if (currentObservation && currentObservation.risk_score === 0) {
+  if (currentObservation && currentObservation.system_state && currentObservation.system_state.risk_score === 0) {
     text = 'SECURE';
   } else {
     const highest = alertState.reduce((acc, a) => Math.max(acc, severityOrder[normalizeSeverity(a.threat_level)] || 1), 1);
@@ -1740,7 +1744,7 @@ function renderSysState(s) {
 }
 
 function renderAlerts(alerts) {
-  if (currentObservation && currentObservation.risk_score === 0) {
+  if (currentObservation && currentObservation.system_state && currentObservation.system_state.risk_score === 0) {
     alerts = [];
   }
   alertState = alerts.map((a) => ({
@@ -1871,7 +1875,11 @@ async function doStep(autoScore = true) {
   flashStatus('EXECUTING...');
   const atype = document.getElementById('actionType').value;
   const rawTarget = document.getElementById('actionTarget').value;
-  const target = rawTarget ? rawTarget.trim() : null;
+  let target = rawTarget ? rawTarget.trim() : null;
+  if ((atype === 'escalate_alert' || atype === 'ignore') && (!target || target === '')) {
+    // Backend expects an explicit target value even for non-entity actions.
+    target = 'system';
+  }
   const reason = document.getElementById('actionReason').value || null;
   const body = { action: { action_type: atype, target: target, reason: reason, confidence: 1.0 } };
   const r = await fetch('/step', {
