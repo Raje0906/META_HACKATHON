@@ -181,6 +181,33 @@ def wandb_login_noninteractive(report_to: str) -> None:
     wandb.login(key=key, relogin=True)
 
 
+def build_wandb_mirror_callback(report_to: str):
+    """
+    Some Unsloth/TRL runs create a W&B run but do not auto-populate chart panels.
+    Mirror trainer logs explicitly so metrics always appear in run history.
+    """
+    if report_to != "wandb":
+        return None
+    try:
+        import wandb
+        from transformers import TrainerCallback
+    except Exception:
+        return None
+
+    class WandbMirrorCallback(TrainerCallback):
+        def on_log(self, args, state, control, logs=None, **kwargs):
+            if not logs or wandb.run is None:
+                return
+            payload = {}
+            for k, v in logs.items():
+                if isinstance(v, (int, float)):
+                    payload[k] = float(v)
+            if payload:
+                wandb.log(payload, step=int(getattr(state, "global_step", 0)))
+
+    return WandbMirrorCallback()
+
+
 def patch_unsloth_text_only_grpo_trainer(trainer: Any) -> None:
     """Fix: AttributeError 'UnslothGRPOTrainer' has no attribute 'image_token_id' on text LMs."""
     for name in ("image_token_id", "vision_start_token_id", "vision_end_token_id"):
@@ -523,12 +550,18 @@ def main() -> None:
         seed=SEED,
     )
 
+    callbacks = []
+    wb_cb = build_wandb_mirror_callback(report_to)
+    if wb_cb is not None:
+        callbacks.append(wb_cb)
+
     trainer = GRPOTrainer(
         model=model,
         processing_class=tokenizer,
         reward_funcs=[format_reward_func, environment_reward_func],
         args=args,
         train_dataset=dataset,
+        callbacks=callbacks,
     )
 
     patch_unsloth_text_only_grpo_trainer(trainer)

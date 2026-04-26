@@ -394,16 +394,16 @@ def _build_web_ui() -> str:
     }
     .layout {
       display: grid;
-      grid-template-columns: 220px minmax(760px, 1fr) 280px;
+      grid-template-columns: 300px minmax(700px, 1fr) 280px;
       min-height: 0;
     }
     .sidebar {
       border-right: 1px solid var(--border);
       background: var(--bg-surface);
-      padding: 10px;
+      padding: 16px 12px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 14px;
       min-height: 0;
       transition: width 160ms ease;
     }
@@ -419,7 +419,7 @@ def _build_web_ui() -> str:
       font-size: 11px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
     .nav-group {
       border: 1px solid var(--border);
@@ -452,15 +452,31 @@ def _build_web_ui() -> str:
       min-height: 0;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 12px;
+    }
+    .ctrl-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      background: rgba(10, 15, 22, 0.55);
+    }
+    .ctrl-section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 2px;
     }
     .checkline {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       color: var(--text-secondary);
-      font-size: 11px;
-      margin: 2px 0;
+      font-size: 12px;
+      margin: 0;
       text-transform: none;
       letter-spacing: 0;
     }
@@ -470,16 +486,16 @@ def _build_web_ui() -> str:
     }
     .hint {
       color: var(--text-muted);
-      font-size: 10px;
-      line-height: 1.4;
-      margin: 2px 0 6px;
+      font-size: 10.5px;
+      line-height: 1.5;
+      margin: 0;
     }
     .controls label {
-      font-size: 11px;
+      font-size: 10.5px;
       color: var(--text-secondary);
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
-      margin-top: 4px;
+      margin: 0;
     }
     .field {
       width: 100%;
@@ -487,8 +503,8 @@ def _build_web_ui() -> str:
       border: 1px solid var(--border);
       color: var(--text-primary);
       border-radius: 4px;
-      padding: 7px 8px;
-      font-size: 12px;
+      padding: 9px 10px;
+      font-size: 12.5px;
       outline: none;
       transition: border-color 150ms ease;
     }
@@ -499,9 +515,9 @@ def _build_web_ui() -> str:
       border: 1px solid var(--border-accent);
       color: var(--text-primary);
       border-radius: 4px;
-      padding: 7px 9px;
+      padding: 10px 9px;
       font-size: 12px;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
       cursor: pointer;
       transition: all 150ms ease;
       text-transform: uppercase;
@@ -923,16 +939,20 @@ def _build_web_ui() -> str:
       border-radius: 2px;
       background: currentColor;
     }
-    .stream-panel { grid-column: span 12; min-height: 160px; }
+    .stream-panel { grid-column: span 12; min-height: 480px; }
     pre {
       height: calc(100% - 34px);
+      min-height: 440px;
       overflow: auto;
       border: none;
       background: #06090d;
       color: #7ec5ff;
-      font-size: 11px;
+      font-size: 11.5px;
+      line-height: 1.6;
       font-family: 'JetBrains Mono', monospace;
-      padding: 10px;
+      padding: 14px;
+      white-space: pre-wrap;
+      word-break: break-all;
     }
     .feed-panel {
       border-left: 1px solid var(--border);
@@ -1036,7 +1056,7 @@ def _build_web_ui() -> str:
     }
     .muted { color: var(--text-muted); }
     @media (max-width: 1500px) {
-      .layout { grid-template-columns: 200px minmax(620px, 1fr) 250px; }
+      .layout { grid-template-columns: 280px minmax(580px, 1fr) 240px; }
       .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
   </style>
@@ -1068,45 +1088,46 @@ def _build_web_ui() -> str:
           <button id="toggleSidebarBtn" class="ghost" style="padding:2px 6px;">Collapse</button>
         </div>
 
-        <div class="nav-group">
-          <div id="navDashboard" class="nav-item active" onclick="navigatePanel('dashboard')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3h18v18H3z"></path><path d="M9 3v18M3 9h18"></path></svg>
-            Dashboard
-          </div>
-          <div id="navResponse" class="nav-item" onclick="navigatePanel('response')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12h18"></path><path d="M12 3v18"></path></svg>
-            Response
-          </div>
-        </div>
+
 
         <div class="controls">
-          <label>Scenario / Task</label>
-          <select id="taskSel" class="field mono">
-            <option value="easy_phishing_login">EASY / Phishing Campaign</option>
-            <option value="medium_brute_force_geo">MEDIUM / Geo-Anomaly</option>
-            <option value="hard_apt_multistage">HARD / APT Kill Chain</option>
-          </select>
-          <label class="checkline"><input id="deterministicDemo" type="checkbox" checked />Deterministic Demo Mode</label>
-          <div class="hint">Disables red-agent / live intel / schema drift for repeatable judge runs.</div>
-          <button class="btn primary" onclick="doReset()">Initialize Environment</button>
-          <button class="btn" onclick="runAutonomousDemo()">Run Autonomous Demo</button>
+          <div class="ctrl-section">
+            <div class="ctrl-section-title">Environment Setup</div>
+            <label>Scenario / Task</label>
+            <select id="taskSel" class="field mono">
+              <option value="easy_phishing_login">EASY / Phishing Campaign</option>
+              <option value="medium_brute_force_geo">MEDIUM / Geo-Anomaly</option>
+              <option value="hard_apt_multistage">HARD / APT Kill Chain</option>
+            </select>
+            <label class="checkline"><input id="deterministicDemo" type="checkbox" checked />Deterministic Demo Mode</label>
+            <div class="hint">Disables red-agent / live intel / schema drift for repeatable judge runs.</div>
+            <button class="btn primary" onclick="doReset()">Initialize Environment</button>
+            <button class="btn" onclick="runAutonomousDemo()">Run Autonomous Demo</button>
+          </div>
 
-          <label>Action Primitive</label>
-          <select id="actionType" class="field mono" onchange="updateTarget()">
-            <option value="block_ip">block_ip</option>
-            <option value="flag_user">flag_user</option>
-            <option value="isolate_host">isolate_host</option>
-            <option value="escalate_alert">escalate_alert</option>
-            <option value="ignore">ignore</option>
-          </select>
-          <label>Entity Target</label>
-          <input id="actionTarget" class="field mono" placeholder="185.220.101.47"/>
-          <label>Audit Reason</label>
-          <input id="actionReason" class="field" placeholder="Suspicious geo-travel"/>
-          <button class="btn" onclick="doStep()">Execute Action</button>
-          <button class="btn danger" onclick="doScore()">Evaluate Episode</button>
-          <button class="btn" onclick="suggestNextAction()">Suggested Next Action</button>
-          <div id="suggestedActionPanel" class="hint">No suggestion yet. Reset environment first.</div>
+          <div class="ctrl-section">
+            <div class="ctrl-section-title">Manual Response</div>
+            <label>Action Primitive</label>
+            <select id="actionType" class="field mono" onchange="updateTarget()">
+              <option value="block_ip">block_ip</option>
+              <option value="flag_user">flag_user</option>
+              <option value="isolate_host">isolate_host</option>
+              <option value="escalate_alert">escalate_alert</option>
+              <option value="ignore">ignore</option>
+            </select>
+            <label>Entity Target</label>
+            <input id="actionTarget" class="field mono" placeholder="185.220.101.47"/>
+            <label>Audit Reason</label>
+            <input id="actionReason" class="field" placeholder="Suspicious geo-travel"/>
+            <button class="btn" onclick="doStep()">Execute Action</button>
+            <button class="btn danger" onclick="doScore()">Evaluate Episode</button>
+          </div>
+
+          <div class="ctrl-section">
+            <div class="ctrl-section-title">AI Suggestion</div>
+            <button class="btn" onclick="suggestNextAction()">Suggest Next Action</button>
+            <div id="suggestedActionPanel" class="hint">No suggestion yet. Reset environment first.</div>
+          </div>
         </div>
       </aside>
 
@@ -1239,17 +1260,17 @@ def _build_web_ui() -> str:
 
       <aside class="feed-panel">
         <div class="feed-header">
-          <span>Live Feed Ticker</span>
-          <span class="live-indicator"><span class="dot"></span> LIVE</span>
-        </div>
-        <ul id="liveFeedList" class="feed-list"></ul>
-        <div class="feed-header">
           <span>Action Timeline</span>
           <span class="status" id="autoStepChip">MANUAL</span>
         </div>
         <div id="actionTimeline" class="action-log">
           <div class="action-log-item">No actions yet.</div>
         </div>
+        <div class="feed-header">
+          <span>Live Feed Ticker</span>
+          <span class="live-indicator"><span class="dot"></span> LIVE</span>
+        </div>
+        <ul id="liveFeedList" class="feed-list"></ul>
       </aside>
     </div>
   </div>
