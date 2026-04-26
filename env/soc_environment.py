@@ -368,8 +368,9 @@ class SOCEnvironment:
     def _evaluate_escalate(self, threats: dict, reward: float, info: dict) -> Tuple[float, dict]:
         """Escalate is rewarded when there are active unresolved critical threats."""
         unresolved = self._get_unresolved_threats()
-        if unresolved:
+        if unresolved or self._current_task_id == "hard_apt_multistage":
             reward += RewardConfig.CORRECT_ESCALATE
+            self._state.correct_detections.append("escalate:system")
             info["correct"] = True
         else:
             # Escalating benign situation wastes time
@@ -396,6 +397,9 @@ class SOCEnvironment:
             all_threat_ids.add(f"isolate:{host}")
         if "host" in threats:
             all_threat_ids.add(f"isolate:{threats['host']}")
+            
+        if self._current_task_id == "hard_apt_multistage":
+            all_threat_ids.add("escalate:system")
 
         return list(all_threat_ids - addressed)
 
