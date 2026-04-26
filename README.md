@@ -74,7 +74,7 @@ Use this list when you (the **team leader**) submit **one** official entry. Miss
 
 ### Training progress (baseline vs trained)
 
-![Baseline vs trained blue scores and red evasion](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/main/outputs/evals/red_vs_blue_curve.png)
+![Baseline vs trained blue scores and red evasion](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/hf-final/outputs/evals/red_vs_blue_curve.png)
 
 *Smoothed per-episode scores from `training/red_vs_blue_loop.py`; raw numbers in `outputs/evals/scores.json`.*
 
