@@ -72,7 +72,7 @@ We built a live SOC dashboard so you can see exactly what the agent sees and doe
 
 The moment the environment initializes, the dashboard shows you exactly what a real analyst would face:
 
-![SOC Dashboard showing THREAT LEVEL CRITICAL with CRITICAL and MEDIUM active alerts at 0% risk start](outputs/evals/screenshots/dashboard_threat_critical.png)
+![SOC Dashboard showing THREAT LEVEL CRITICAL with CRITICAL and MEDIUM active alerts at 0% risk start](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/hf-final/outputs/evals/screenshots/dashboard_threat_critical.png)
 
 **The threat map shows live network connections â€” the pulsing red node is the attacker's C2 beacon.** The alerts panel surfaces the two most critical events: a web shell planted via CVE-2024-1234 (CRITICAL), and an external port scan from the attacker IP (MEDIUM). The agent sees this and decides what to do â€” no human required.
 
@@ -80,13 +80,13 @@ The moment the environment initializes, the dashboard shows you exactly what a r
 
 Hit "Run Autonomous Demo" and watch the agent move through all five mitigations:
 
-![Full SOC dashboard showing the autonomous agent mid-execution with 0% risk and alerts still active](outputs/evals/screenshots/dashboard_agent_running.png)
+![Full SOC dashboard showing the autonomous agent mid-execution with 0% risk and alerts still active](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/hf-final/outputs/evals/screenshots/dashboard_agent_running.png)
 
 The dashboard updates live as the agent works. **Each action â€” `isolate_host`, `block_ip`, `flag_user`, `escalate_alert` â€” fires in sequence, following the MITRE ATT&CK kill chain order.** The agent did in seconds what takes a human analyst hours of log correlation.
 
 ### Step 3 â€” SECURE State After Complete Mitigation
 
-![SOC Dashboard showing 0% Risk Level, no active anomalies, score donut at 80%](outputs/evals/screenshots/dashboard_secure_80pct.png)
+![SOC Dashboard showing 0% Risk Level, no active anomalies, score donut at 80%](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/hf-final/outputs/evals/screenshots/dashboard_secure_80pct.png)
 
 **Risk drops to 0%. The threat badge flips to SECURE. All alerts clear.** The score donut shows 80% â€” accounting for the ordering bonus and speed bonus built into the deterministic grader. This moment is the clearest demonstration of what we built. **Zero risk. Clean slate. Every threat resolved.**
 
@@ -112,19 +112,19 @@ For model training, we used **GRPO (Group Relative Policy Optimization)** with *
 
 ### W&B Chart 1 â€” Generation Time Per Training Step
 
-![W&B profiling chart â€” UnslothGRPOTrainer generation time across 90 global steps, stable band 66â€“67s](outputs/evals/wandb_chart_01.png)
+![W&B profiling chart â€” UnslothGRPOTrainer generation time across 90 global steps, stable band 66â€“67s](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/hf-final/outputs/evals/wandb_chart_01.png)
 
 This chart shows the time taken by `UnslothGRPOTrainer.transformers.generate` per step. **The tight, stable band around 66â€“67 seconds confirms the trainer is healthy** â€” no memory leaks, no runaway inference loops across the full training session.
 
 ### W&B Chart 2 â€” Reward Pipeline: Trainer vs Environment (1,200+ Steps)
 
-![W&B dual-line chart showing _calculate_rewards in blue and environment_reward_func in orange across 1200+ steps](outputs/evals/wandb_chart_02.png)
+![W&B dual-line chart showing _calculate_rewards in blue and environment_reward_func in orange across 1200+ steps](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/hf-final/outputs/evals/wandb_chart_02.png)
 
 **This is the two-sided reward pipeline in action.** The blue line is the GRPO trainer's internal reward aggregation (`_calculate_rewards`), and the orange line is our live SOC environment's grader responding to agent actions (`environment_reward_func`). **Both stay low and stable over 1,200+ steps** â€” the environment serves rewards without ever bottlenecking training. This is non-trivial when the reward function involves live API calls to the running simulator.
 
 ### W&B Chart 3 â€” Per-Step Reward Calculation Time
 
-![W&B chart showing _calculate_rewards timing 0.005â€“0.008 seconds per step with one spike at step 70](outputs/evals/wandb_chart_03.png)
+![W&B chart showing _calculate_rewards timing 0.005â€“0.008 seconds per step with one spike at step 70](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/hf-final/outputs/evals/wandb_chart_03.png)
 
 **The reward calculation time hovers stably between 0.005â€“0.008 seconds per step.** Notice the spike at step 70 â€” that's when the Red Agent triggered a tactic escalation (MITRE T1027 Obfuscation) for the first time in the session, forcing the reward function to evaluate a more complex attack tree. It recovered immediately. **The system is robust to adversarial escalation mid-training.**
 
@@ -134,7 +134,7 @@ This chart shows the time taken by `UnslothGRPOTrainer.transformers.generate` pe
 
 This is the honest picture of what training actually did to the agent's performance:
 
-![Red vs Blue training curve: baseline (gray dashed) vs trained (blue solid) and Red Agent evasion rate (red) across all 3 tasks over 50 episodes](outputs/evals/red_vs_blue_curve.png)
+![Red vs Blue training curve: baseline (gray dashed) vs trained (blue solid) and Red Agent evasion rate (red) across all 3 tasks over 50 episodes](https://raw.githubusercontent.com/Raje0906/META_HACKATHON/hf-final/outputs/evals/red_vs_blue_curve.png)
 
 **Blue solid line = trained agent. Gray dashed = random baseline. Red line = Red Agent's evasion rate.**
 
@@ -248,5 +248,6 @@ That's the difference between memorization and reasoning. **That's SOC Simulator
 *Built with â¤ï¸, too much caffeine, and a genuine belief that the next generation of cybersecurity will be trained â€” not programmed.*
 
 *â€” Aditya Raje, Meta Hackathon 2026*
+
 
 
