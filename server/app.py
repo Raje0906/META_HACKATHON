@@ -1535,7 +1535,8 @@ function recommendAction(observation) {
       { action_type: 'isolate_host', target: hardWebHost, reason: 'contain initial foothold host' },
       { action_type: 'isolate_host', target: hardDbHost, reason: 'contain lateral movement target' },
       { action_type: 'block_ip', target: knownHardC2Ip, reason: 'cut C2 and exfiltration channel' },
-      { action_type: 'flag_user', target: hardUser, reason: 'disable compromised service identity' }
+      { action_type: 'flag_user', target: hardUser, reason: 'disable compromised service identity' },
+      { action_type: 'escalate_alert', target: null, reason: 'escalate exfiltration to CISO for containment' }
     );
   }
 
@@ -1579,8 +1580,13 @@ function severityClass(level) {
 }
 
 function renderThreatBadge() {
-  const highest = alertState.reduce((acc, a) => Math.max(acc, severityOrder[normalizeSeverity(a.threat_level)] || 1), 1);
-  const text = highest >= 5 ? 'CRITICAL' : highest >= 4 ? 'HIGH' : highest >= 3 ? 'MEDIUM' : highest >= 2 ? 'LOW' : 'INFO';
+  let text = 'INFO';
+  if (currentObservation && currentObservation.risk_score === 0) {
+    text = 'SECURE';
+  } else {
+    const highest = alertState.reduce((acc, a) => Math.max(acc, severityOrder[normalizeSeverity(a.threat_level)] || 1), 1);
+    text = highest >= 5 ? 'CRITICAL' : highest >= 4 ? 'HIGH' : highest >= 3 ? 'MEDIUM' : highest >= 2 ? 'LOW' : 'INFO';
+  }
   const badge = document.getElementById('globalThreatBadge');
   const textEl = document.getElementById('globalThreatText');
   textEl.textContent = text;
