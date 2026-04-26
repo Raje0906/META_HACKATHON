@@ -54,6 +54,8 @@ pinned: false
 
 If the image above does not load immediately after a push, use the copy in the repo: [`outputs/evals/red_vs_blue_curve.png`](outputs/evals/red_vs_blue_curve.png).
 
+**Note:** Hugging Face Spaces git hooks reject binary PNGs in the Space repository. This repo’s **GitHub** branch `hf-final` keeps the plot files for judges; the Space deploy uses the same code and `scores.json` with README figures loaded from GitHub `raw.githubusercontent.com`.
+
 ## What Makes This Environment Challenging
 
 - Adaptive adversary (`env/red_agent.py`) rotates attacker IPs, credentials, and tactics.
