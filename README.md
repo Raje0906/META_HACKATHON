@@ -23,7 +23,7 @@ pinned: false
 
 ## Links for Judges
 
-- **Hugging Face Space (submit this URL):** [aditya9605-meta-hackathon-finale](https://aditya9605-meta-hackathon-finale.hf.space)
+- **Hugging Face Space (canonical — only Space for this project):** [META_HACKATHON_FINALE on the Hub](https://huggingface.co/spaces/Aditya9605/META_HACKATHON_FINALE) · live app: [aditya9605-meta-hackathon-finale.hf.space](https://aditya9605-meta-hackathon-finale.hf.space)
 - API docs: [Space /docs](https://aditya9605-meta-hackathon-finale.hf.space/docs)
 - Interactive dashboard: [Space /web](https://aditya9605-meta-hackathon-finale.hf.space/web)
 - **GitHub repo:** [Raje0906/META_HACKATHON](https://github.com/Raje0906/META_HACKATHON) (full source, eval plots, and training scripts)
